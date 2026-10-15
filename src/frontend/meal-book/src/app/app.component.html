@@ -1,0 +1,31 @@
+<div class="page-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/" aria-label="Meal Book home">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span>mealbook</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a routerLink="/recipes" routerLinkActive="active">Recipes</a>
+      @if (auth.currentUser()) {
+        <a routerLink="/history" routerLinkActive="active">Cooking history</a>
+        @if (auth.currentUser()?.isAdmin) {
+          <a routerLink="/admin/recipes/new">Add recipe</a>
+        }
+        <span class="nav-email">{{ auth.currentUser()?.email }}</span>
+        <button class="text-button" type="button" (click)="auth.logout()">Sign out</button>
+      } @else {
+        <a routerLink="/login">Sign in</a>
+        <a class="nav-signup" routerLink="/register">Join</a>
+      }
+    </nav>
+  </header>
+
+  <main>
+    <router-outlet />
+  </main>
+
+  <footer>
+    <span>Made for the meals worth remembering.</span>
+    <span>Your kitchen, thoughtfully organized</span>
+  </footer>
+</div>
