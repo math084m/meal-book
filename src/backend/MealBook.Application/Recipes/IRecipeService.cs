@@ -14,6 +14,12 @@ public interface IRecipeService
         CreateRecipeRequest request,
         CancellationToken cancellationToken);
 
+    Task<RecipeResponse> ImportAsync(
+        ImportRecipeRequest request,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<RecipeResponse>> GetDraftsAsync(CancellationToken cancellationToken);
+
     Task<RecipeResponse?> UpdateAsync(
         Guid id,
         UpdateRecipeRequest request,

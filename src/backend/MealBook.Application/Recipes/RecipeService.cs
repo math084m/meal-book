@@ -40,6 +40,21 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
         return ToResponse(new RecipeView(recipe, 0, null));
     }
 
+    public async Task<RecipeResponse> ImportAsync(
+        ImportRecipeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var recipe = CreateRecipe(request, isPublished: false, sourceUrl: request.SourceUrl);
+        await repository.AddAsync(recipe, cancellationToken);
+        return ToResponse(new RecipeView(recipe, 0, null));
+    }
+
+    public async Task<IReadOnlyList<RecipeResponse>> GetDraftsAsync(CancellationToken cancellationToken)
+    {
+        var drafts = await repository.GetDraftsAsync(cancellationToken);
+        return drafts.Select(ToResponse).ToArray();
+    }
+
     public async Task<RecipeResponse?> UpdateAsync(
         Guid id,
         UpdateRecipeRequest request,
@@ -78,7 +93,9 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
     private static Recipe CreateRecipe(
         RecipeWriteRequest request,
         Guid? id = null,
-        DateTimeOffset? addedAt = null) =>
+        DateTimeOffset? addedAt = null,
+        bool? isPublished = null,
+        string? sourceUrl = null) =>
         Recipe.Create(
             request.Name,
             request.Description,
@@ -104,7 +121,9 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
             request.Equipment.Select((item, position) => RecipeEquipment.Create(item, position)),
             request.Tags,
             id,
-            addedAt);
+            addedAt,
+            isPublished ?? request.IsPublished,
+            sourceUrl ?? request.SourceUrl);
 
     private static RecipeResponse ToResponse(RecipeView view)
     {
@@ -125,6 +144,8 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
             recipe.CarbohydratesGramsPerServing,
             recipe.FatGramsPerServing,
             recipe.AddedAt,
+            recipe.IsPublished,
+            recipe.SourceUrl,
             view.CookCount,
             view.RecentCookCount,
             view.AverageRating,

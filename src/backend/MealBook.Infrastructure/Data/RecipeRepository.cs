@@ -10,7 +10,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         RecipeSearchRequest search,
         CancellationToken cancellationToken)
     {
-        var query = CreateRecipeQuery();
+        var query = CreateRecipeQuery().Where(recipe => recipe.IsPublished);
         var term = search.Search?.Trim();
         if (!string.IsNullOrEmpty(term))
         {
@@ -94,6 +94,15 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         };
     }
 
+    public async Task<IReadOnlyList<RecipeView>> GetDraftsAsync(CancellationToken cancellationToken)
+    {
+        var drafts = await CreateRecipeQuery()
+            .Where(recipe => !recipe.IsPublished)
+            .OrderByDescending(recipe => recipe.AddedAt)
+            .ToListAsync(cancellationToken);
+        return await AddStatisticsAsync(drafts, cancellationToken);
+    }
+
     public async Task<RecipeView?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var recipe = await CreateRecipeQuery()
@@ -154,7 +163,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         CancellationToken cancellationToken)
     {
         var recipeName = await db.Recipes
-            .Where(recipe => recipe.Id == recipeId)
+            .Where(recipe => recipe.Id == recipeId && recipe.IsPublished)
             .Select(recipe => recipe.Name)
             .SingleOrDefaultAsync(cancellationToken);
         if (recipeName is null)
@@ -193,7 +202,9 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
 
     public async Task<RecipeDashboardData> GetDashboardAsync(CancellationToken cancellationToken)
     {
-        var recipes = await CreateRecipeQuery().ToListAsync(cancellationToken);
+        var recipes = await CreateRecipeQuery()
+            .Where(recipe => recipe.IsPublished)
+            .ToListAsync(cancellationToken);
         var views = await AddStatisticsAsync(recipes, cancellationToken);
         var recentLogs = await db.RecipeCookLogs
             .AsNoTracking()

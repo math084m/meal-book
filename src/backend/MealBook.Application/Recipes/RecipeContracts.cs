@@ -22,6 +22,8 @@ public sealed record RecipeResponse(
     int? CarbohydratesGramsPerServing,
     int? FatGramsPerServing,
     DateTimeOffset AddedAt,
+    bool IsPublished,
+    string? SourceUrl,
     int CookCount,
     int RecentCookCount,
     double? AverageRating,
@@ -80,6 +82,11 @@ public abstract class RecipeWriteRequest
     [System.ComponentModel.DataAnnotations.Range(0, 1000)]
     public int? FatGramsPerServing { get; init; }
 
+    public bool IsPublished { get; init; } = true;
+
+    [System.ComponentModel.DataAnnotations.StringLength(2048)]
+    public string? SourceUrl { get; init; }
+
     [StringItems(80)]
     [System.ComponentModel.DataAnnotations.MaxLength(30)]
     public List<string> Tags { get; init; } = [];
@@ -97,12 +104,22 @@ public abstract class RecipeWriteRequest
     public List<string> Equipment { get; init; } = [];
 }
 
+public sealed class ImportRecipeRequest : RecipeWriteRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(2048)]
+    [System.ComponentModel.DataAnnotations.Url]
+    public string SourceUrl { get; init; } = string.Empty;
+}
+
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class StringItemsAttribute(int maxItemLength) : System.ComponentModel.DataAnnotations.ValidationAttribute
 {
     public override bool IsValid(object? value) =>
         value is IEnumerable<string> items
-        && items.All(item => !string.IsNullOrWhiteSpace(item) && item.Length <= maxItemLength);
+        && items.All(item => item is not null
+            && !string.IsNullOrWhiteSpace(item)
+            && item.Length <= maxItemLength);
 }
 
 public sealed class CreateRecipeIngredientRequest

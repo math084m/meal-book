@@ -21,6 +21,8 @@ public sealed class Recipe
     public int? CarbohydratesGramsPerServing { get; private set; }
     public int? FatGramsPerServing { get; private set; }
     public DateTimeOffset AddedAt { get; private set; }
+    public bool IsPublished { get; private set; }
+    public string? SourceUrl { get; private set; }
     public List<RecipeIngredient> Ingredients { get; private set; } = [];
     public List<RecipeStep> Steps { get; private set; } = [];
     public List<RecipeEquipment> Equipment { get; private set; } = [];
@@ -45,7 +47,9 @@ public sealed class Recipe
         IEnumerable<RecipeEquipment> equipment,
         IEnumerable<string> tags,
         Guid? id = null,
-        DateTimeOffset? addedAt = null) =>
+        DateTimeOffset? addedAt = null,
+        bool isPublished = true,
+        string? sourceUrl = null) =>
         new()
         {
             Id = id ?? Guid.NewGuid(),
@@ -63,6 +67,8 @@ public sealed class Recipe
             CarbohydratesGramsPerServing = carbohydratesGramsPerServing,
             FatGramsPerServing = fatGramsPerServing,
             AddedAt = addedAt ?? DateTimeOffset.UtcNow,
+            IsPublished = isPublished,
+            SourceUrl = sourceUrl?.Trim(),
             Ingredients = ingredients.ToList(),
             Steps = steps.ToList(),
             Equipment = equipment.ToList(),

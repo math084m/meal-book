@@ -8,6 +8,8 @@ public interface IRecipeRepository
         RecipeSearchRequest search,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<RecipeView>> GetDraftsAsync(CancellationToken cancellationToken);
+
     Task<RecipeView?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     Task AddAsync(Recipe recipe, CancellationToken cancellationToken);

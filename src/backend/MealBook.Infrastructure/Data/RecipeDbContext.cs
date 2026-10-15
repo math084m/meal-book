@@ -28,6 +28,9 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         recipe.Property(item => item.Course).HasMaxLength(80).IsRequired();
         recipe.Property(item => item.CookingMethod).HasMaxLength(100).IsRequired();
         recipe.Property(item => item.Cuisine).HasMaxLength(100).IsRequired();
+        recipe.Property(item => item.IsPublished).IsRequired();
+        recipe.Property(item => item.SourceUrl).HasMaxLength(2048);
+        recipe.HasIndex(item => new { item.IsPublished, item.AddedAt });
 
         recipe.HasMany(item => item.Ingredients)
             .WithOne()

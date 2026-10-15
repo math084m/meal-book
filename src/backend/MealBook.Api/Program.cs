@@ -47,18 +47,27 @@ app.MapGet("/api/health", async (IDatabaseHealth health, CancellationToken cance
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
 app.MapGroup("/api/identity").MapIdentityApi<AppUser>();
 app.MapPost("/api/auth/register", async (
-    RegisterRequest request,
+    RegisterRequest? request,
     UserManager<AppUser> users,
     CancellationToken cancellationToken) =>
 {
-    var email = request.Email.Trim();
     var validationErrors = new Dictionary<string, string[]>();
+    if (request is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["request"] = ["A registration request is required."]
+        });
+    }
+
+    var email = request.Email?.Trim() ?? string.Empty;
+    var password = request.Password ?? string.Empty;
     if (email.Length > 256 || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
     {
         validationErrors["email"] = ["Enter a valid email address."];
     }
 
-    if (request.Password.Length < 10)
+    if (password.Length < 10)
     {
         validationErrors["password"] = ["Password must contain at least 10 characters."];
     }
@@ -70,7 +79,7 @@ app.MapPost("/api/auth/register", async (
 
     cancellationToken.ThrowIfCancellationRequested();
     var user = new AppUser { UserName = email, Email = email };
-    var createResult = await users.CreateAsync(user, request.Password);
+    var createResult = await users.CreateAsync(user, password);
     if (!createResult.Succeeded)
     {
         var errors = createResult.Errors
