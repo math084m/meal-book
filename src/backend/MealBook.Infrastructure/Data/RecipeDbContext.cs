@@ -53,7 +53,8 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         ingredient.ToTable("RecipeIngredientEntity");
         ingredient.HasKey(item => item.Id);
         ingredient.Property(item => item.Name).HasMaxLength(200).IsRequired();
-        ingredient.Property(item => item.Unit).HasMaxLength(80).IsRequired();
+        ingredient.Property(item => item.Unit).HasColumnType("text").IsRequired();
+        ingredient.Property(item => item.Section).HasColumnType("text");
         ingredient.Property(item => item.Notes).HasMaxLength(500);
         ingredient.Property(item => item.Quantity).HasPrecision(12, 3);
 

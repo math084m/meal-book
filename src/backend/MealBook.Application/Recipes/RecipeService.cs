@@ -115,6 +115,7 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
                     ingredient.Name,
                     ingredient.Quantity,
                     ingredient.Unit,
+                    ingredient.Section,
                     ingredient.Notes,
                     position)),
             request.Steps.Select((step, position) => RecipeStep.Create(step, position)),
@@ -156,6 +157,7 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
                     ingredient.Name,
                     ingredient.Quantity,
                     ingredient.Unit,
+                    ingredient.Section,
                     ingredient.Notes))
                 .ToArray(),
             recipe.Steps

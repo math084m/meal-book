@@ -9,6 +9,7 @@
       @if (auth.currentUser()) {
         <a routerLink="/history" routerLinkActive="active">Cooking history</a>
         @if (auth.currentUser()?.isAdmin) {
+          <a routerLink="/admin/recipes/drafts">Review drafts</a>
           <a routerLink="/admin/recipes/new">Add recipe</a>
         }
         <span class="nav-email">{{ auth.currentUser()?.email }}</span>

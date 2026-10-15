@@ -39,13 +39,16 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
           <section class="detail-card">
             <p class="eyebrow">WHAT YOU NEED</p>
             <h2>Ingredients</h2>
-            <ul class="ingredient-list">
-              @for (ingredient of item.ingredients; track $index) {
-                <li><strong>{{ ingredient.quantity }} {{ ingredient.unit }}</strong> {{ ingredient.name }}
-                  @if (ingredient.notes) { <span class="muted">— {{ ingredient.notes }}</span> }
-                </li>
-              }
-            </ul>
+            @for (group of ingredientGroups(item.ingredients); track group.key) {
+              @if (group.section) { <h3 class="ingredient-section-title">{{ group.section }}</h3> }
+              <ul class="ingredient-list">
+                @for (ingredient of group.ingredients; track $index) {
+                  <li><strong>{{ ingredient.quantity }} {{ ingredient.unit }}</strong> {{ ingredient.name }}
+                    @if (ingredient.notes) { <span class="muted">— {{ ingredient.notes }}</span> }
+                  </li>
+                }
+              </ul>
+            }
             @if (item.equipment.length) {
               <h3>Equipment</h3>
               <ul class="plain-list">@for (tool of item.equipment; track tool) { <li>{{ tool }}</li> }</ul>
@@ -116,6 +119,18 @@ export class RecipeDetailComponent implements OnInit {
   readonly saving = signal(false);
   rating: number | null = null;
   notes = '';
+
+  ingredientGroups(ingredients: Recipe['ingredients']): { key: string; section: string; ingredients: Recipe['ingredients'] }[] {
+    const groups = new Map<string, { key: string; section: string; ingredients: Recipe['ingredients'] }>();
+    for (const ingredient of ingredients) {
+      const section = ingredient.section?.trim() || 'Ingredients';
+      const key = section.toLocaleLowerCase();
+      const group = groups.get(key) ?? { key, section, ingredients: [] };
+      group.ingredients.push(ingredient);
+      groups.set(key, group);
+    }
+    return [...groups.values()];
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');

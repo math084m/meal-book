@@ -7,6 +7,7 @@ import { RegisterComponent } from './register.component';
 import { CookingHistoryComponent } from './cooking-history.component';
 import { AdminRecipeFormComponent } from './admin-recipe-form.component';
 import { adminGuard, userGuard } from './auth.guard';
+import { AdminDraftsComponent } from './admin-drafts.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -16,6 +17,7 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'history', component: CookingHistoryComponent, canActivate: [userGuard] },
   { path: 'admin/recipes/new', component: AdminRecipeFormComponent, canActivate: [adminGuard] },
+  { path: 'admin/recipes/drafts', component: AdminDraftsComponent, canActivate: [adminGuard] },
   { path: 'admin/recipes/:id/edit', component: AdminRecipeFormComponent, canActivate: [adminGuard] },
   { path: '**', redirectTo: '' }
 ];

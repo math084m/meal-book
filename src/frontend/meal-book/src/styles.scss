@@ -18,8 +18,31 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.publish-toggle {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+}
+
+.publish-toggle input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+}
+
 * {
   box-sizing: border-box;
+}
+
+.draft-grid h2 {
+  margin-bottom: 0.6rem;
+  font-size: 1.5rem;
+}
+
+.source-link {
+  display: block;
+  margin: 0.9rem 0;
+  overflow-wrap: anywhere;
 }
 
 body {
@@ -372,6 +395,13 @@ textarea:focus {
   line-height: 1.55;
 }
 
+.detail-card .ingredient-section-title {
+  margin-top: 1rem;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .steps-list {
   padding: 0;
   margin: 0;
@@ -531,11 +561,45 @@ textarea:focus {
 
 .ingredient-editor {
   display: grid;
-  grid-template-columns: 1.5fr 0.6fr 0.8fr 1.2fr auto;
+  grid-template-columns: 1fr 1.3fr 0.55fr 1fr 1.2fr auto;
   align-items: end;
   gap: 0.7rem;
   padding: 0.75rem 0;
   border-top: 1px solid var(--line);
+}
+
+.ingredient-subsection {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.ingredient-subsection-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ingredient-subsection-heading label {
+  flex: 1;
+  max-width: 520px;
+}
+
+.subsection-add-ingredient {
+  margin-top: 0.8rem;
+}
+
+.remove-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ingredient-unit {
+  display: grid;
+  gap: 0.5rem;
 }
 
 .step-editor,

@@ -31,18 +31,46 @@ import { RecipeApiService, RecipeIngredient, RecipeWrite } from './recipe-api.se
           <label>Carbohydrates (g) <input name="carbs" type="number" min="0" [(ngModel)]="model.carbohydratesGramsPerServing" /></label>
           <label>Fat (g) <input name="fat" type="number" min="0" [(ngModel)]="model.fatGramsPerServing" /></label>
           <label class="wide">Tags <input name="tags" [(ngModel)]="tagText" placeholder="quick, vegetarian, family favorite" /></label>
+          <label class="wide">Source URL <input name="sourceUrl" type="url" [(ngModel)]="model.sourceUrl" maxlength="2048" placeholder="https://example.com/recipe" /></label>
+          <label class="publish-toggle">
+            <input name="isPublished" type="checkbox" [(ngModel)]="model.isPublished" />
+            Publish this recipe to public library
+          </label>
         </div>
       </section>
 
       <section class="form-section">
-        <div class="form-section-heading"><h2>Ingredients</h2><button class="button secondary small" type="button" (click)="addIngredient()">Add ingredient</button></div>
-        @for (ingredient of model.ingredients; track $index) {
-          <div class="ingredient-editor">
-            <label>Ingredient <input [name]="'ingredientName' + $index" [(ngModel)]="ingredient.name" required /></label>
-            <label>Quantity <input [name]="'ingredientQty' + $index" type="number" min="0.001" step="0.001" [(ngModel)]="ingredient.quantity" required /></label>
-            <label>Unit <input [name]="'ingredientUnit' + $index" [(ngModel)]="ingredient.unit" required /></label>
-            <label>Notes <input [name]="'ingredientNotes' + $index" [(ngModel)]="ingredient.notes" placeholder="finely chopped" /></label>
-            <button class="remove-button" type="button" (click)="removeAt(model.ingredients, $index)" aria-label="Remove ingredient">Remove</button>
+        <div class="form-section-heading">
+          <h2>Ingredients</h2>
+          <button class="button secondary small" type="button" (click)="addSection()">Add subsection</button>
+        </div>
+        @for (section of ingredientSections; track $index) {
+          <div class="ingredient-subsection">
+            <div class="ingredient-subsection-heading">
+              <label>Subsection name <input [name]="'ingredientSection' + $index" [(ngModel)]="section.name" required placeholder="e.g. Ragù" /></label>
+              <button class="remove-button" type="button" (click)="removeSection($index)" [disabled]="ingredientSections.length === 1" aria-label="Remove subsection">Remove subsection</button>
+            </div>
+            @for (ingredient of section.ingredients; track $index) {
+              <div class="ingredient-editor">
+                <label>Ingredient <input [name]="'ingredientName' + ingredientIndex(section, ingredient)" [(ngModel)]="ingredient.name" required /></label>
+                <label>Quantity <input [name]="'ingredientQty' + ingredientIndex(section, ingredient)" type="number" min="0.001" step="0.001" [(ngModel)]="ingredient.quantity" required /></label>
+                <div class="ingredient-unit">
+                  <label>Unit
+                    <select [name]="'ingredientUnit' + ingredientIndex(section, ingredient)" [ngModel]="unitChoice(ingredient.unit)" (ngModelChange)="setUnit(ingredient, $event)" required>
+                      <option value="">Select unit</option>
+                      @for (unit of units; track unit) { <option [value]="unit">{{ unit }}</option> }
+                      <option [value]="otherUnit">Other</option>
+                    </select>
+                  </label>
+                  @if (unitChoice(ingredient.unit) === otherUnit) {
+                    <label>Custom unit <input [name]="'ingredientCustomUnit' + ingredientIndex(section, ingredient)" [(ngModel)]="ingredient.unit" required /></label>
+                  }
+                </div>
+                <label>Notes <input [name]="'ingredientNotes' + ingredientIndex(section, ingredient)" [(ngModel)]="ingredient.notes" placeholder="finely chopped" /></label>
+                <button class="remove-button" type="button" (click)="removeIngredient(section, $index)" [disabled]="section.ingredients.length === 1" aria-label="Remove ingredient">Remove</button>
+              </div>
+            }
+              <button class="button secondary small subsection-add-ingredient" type="button" (click)="addIngredient(section)">Add ingredient</button>
           </div>
         }
       </section>
@@ -82,6 +110,9 @@ export class AdminRecipeFormComponent implements OnInit {
   readonly error = signal('');
   readonly saving = signal(false);
   readonly recipeId = this.route.snapshot.paramMap.get('id');
+  readonly units = ['g', 'kg', 'mg', 'ml', 'cl', 'dl', 'l', 'tsp', 'tbsp', 'piece', 'clove', 'can', 'package', 'pinch', 'handful', 'slice', 'bunch', 'cup'];
+  readonly otherUnit = '__other__';
+  ingredientSections: IngredientSection[] = [{ name: '', ingredients: [this.newIngredient()] }];
   tagText = '';
   model: RecipeWrite = {
     name: '',
@@ -97,8 +128,10 @@ export class AdminRecipeFormComponent implements OnInit {
     proteinGramsPerServing: null,
     carbohydratesGramsPerServing: null,
     fatGramsPerServing: null,
+    isPublished: true,
+    sourceUrl: '',
     tags: [],
-    ingredients: [{ name: '', quantity: 1, unit: '', notes: '' }],
+    ingredients: [],
     steps: [''],
     equipment: []
   };
@@ -107,6 +140,18 @@ export class AdminRecipeFormComponent implements OnInit {
     if (!this.recipeId) return;
     this.api.getRecipe(this.recipeId).subscribe({
       next: recipe => {
+        const sections = new Map<string, IngredientSection>();
+        for (const ingredient of recipe.ingredients) {
+          const name = ingredient.section?.trim() || 'Ingredients';
+          const key = name.toLocaleLowerCase();
+          const section = sections.get(key) ?? { name, ingredients: [] };
+          section.ingredients.push({ ...ingredient });
+          sections.set(key, section);
+        }
+        this.ingredientSections = [...sections.values()];
+        if (!this.ingredientSections.length) {
+          this.ingredientSections = [{ name: 'Ingredients', ingredients: [this.newIngredient()] }];
+        }
         this.model = {
           name: recipe.name,
           description: recipe.description ?? '',
@@ -121,6 +166,8 @@ export class AdminRecipeFormComponent implements OnInit {
           proteinGramsPerServing: recipe.proteinGramsPerServing ?? null,
           carbohydratesGramsPerServing: recipe.carbohydratesGramsPerServing ?? null,
           fatGramsPerServing: recipe.fatGramsPerServing ?? null,
+          isPublished: recipe.isPublished,
+          sourceUrl: recipe.sourceUrl ?? '',
           tags: recipe.tags,
           ingredients: recipe.ingredients.map(item => ({ ...item })),
           steps: [...recipe.steps],
@@ -132,21 +179,57 @@ export class AdminRecipeFormComponent implements OnInit {
     });
   }
 
-  addIngredient(): void {
-    this.model.ingredients.push({ name: '', quantity: 1, unit: '', notes: '' });
+  addSection(): void {
+    this.ingredientSections.push({ name: '', ingredients: [this.newIngredient()] });
   }
 
-  removeAt(items: string[] | RecipeIngredient[], index: number): void {
+  removeSection(index: number): void {
+    if (this.ingredientSections.length > 1) this.ingredientSections.splice(index, 1);
+  }
+
+  addIngredient(section: IngredientSection): void {
+    section.ingredients.push(this.newIngredient());
+  }
+
+  removeIngredient(section: IngredientSection, index: number): void {
+    if (section.ingredients.length > 1) section.ingredients.splice(index, 1);
+  }
+
+  ingredientIndex(section: IngredientSection, ingredient: RecipeIngredient): number {
+    const previousSections = this.ingredientSections
+      .slice(0, this.ingredientSections.indexOf(section))
+      .reduce((count, item) => count + item.ingredients.length, 0);
+    return previousSections + section.ingredients.indexOf(ingredient);
+  }
+
+  private newIngredient(): RecipeIngredient {
+    return { name: '', quantity: 1, unit: '', section: '', notes: '' };
+  }
+
+  unitChoice(unit: string): string {
+    return this.units.includes(unit) ? unit : unit ? this.otherUnit : '';
+  }
+
+  setUnit(ingredient: RecipeIngredient, choice: string): void {
+    if (choice === this.otherUnit) {
+      if (this.units.includes(ingredient.unit)) ingredient.unit = '';
+    } else {
+      ingredient.unit = choice;
+    }
+  }
+
+  removeAt(items: string[], index: number): void {
     items.splice(index, 1);
-    if (items === this.model.ingredients && items.length === 0) {
-      this.addIngredient();
-    } else if (items === this.model.steps && items.length === 0) {
+    if (items === this.model.steps && items.length === 0) {
       this.model.steps.push('');
     }
   }
 
   save(): void {
     this.error.set('');
+    this.model.ingredients = this.ingredientSections.flatMap(section =>
+      section.ingredients.map(ingredient => ({ ...ingredient, section: section.name.trim() }))
+    );
     this.saving.set(true);
     this.model.tags = this.tagText.split(',').map(tag => tag.trim()).filter(Boolean);
     const request = this.recipeId
@@ -163,4 +246,9 @@ export class AdminRecipeFormComponent implements OnInit {
       }
     });
   }
+}
+
+interface IngredientSection {
+  name: string;
+  ingredients: RecipeIngredient[];
 }

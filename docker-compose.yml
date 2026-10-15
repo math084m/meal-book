@@ -23,6 +23,7 @@ services:
       ConnectionStrings__MealBook: Host=database;Port=5432;Database=mealbook;Username=mealbook;Password=mealbook-local
       Admin__Email: ${MEALBOOK_ADMIN_EMAIL:-}
       Admin__Password: ${MEALBOOK_ADMIN_PASSWORD:-}
+      RecipeImport__ApiKey: ${MEALBOOK_RECIPE_IMPORT_API_KEY:-}
     ports:
       - "5080:8080"
     depends_on:

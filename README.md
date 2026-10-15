@@ -56,6 +56,9 @@ with `Ctrl+C`, or run `docker compose down`; the database volume is preserved.
   most-cooked recipes.
 - `POST /api/recipes` creates a recipe (Admin role required).
 - `PUT` and `DELETE /api/recipes/{id}` update and delete recipes (Admin required).
+- `GET /api/recipes/admin/drafts` lists unpublished recipes (Admin required).
+- `POST /api/recipe-imports` imports a structured recipe as an unpublished draft
+  using the server-to-server `X-Recipe-Import-Key` header.
 - `POST /api/recipes/{id}/cooked` logs a cook and optional 1–5 rating (signed in).
 - `POST /api/auth/register` creates a standard user; ASP.NET Core Identity
   endpoints at `/api/identity` provide login/token management.
@@ -100,6 +103,61 @@ The frontend and API have separate Dockerfiles and Fly app configs. Update
 region. Set `ConnectionStrings__MealBook` as a Fly secret to your managed
 PostgreSQL connection string, or attach a Fly Postgres database that provides a
 `DATABASE_URL` URI. The API reads either setting and applies Migr8 SQL migrations at startup.
+
+## AI-assisted recipe imports
+
+Playwright is free browser automation, not an AI recipe extractor. Keep browser
+fetching outside the API: an AI agent can read a recipe URL, map its content to
+the recipe JSON shape, then submit it to `POST /api/recipe-imports`. The endpoint
+stores the source URL and always creates an unpublished draft; it never fetches
+arbitrary URLs itself. This avoids exposing the API to server-side request
+forgery from user-controlled links.
+
+Configure a private import key of at least 32 characters. Never put it in the
+Angular app or commit it:
+
+```powershell
+$env:MEALBOOK_RECIPE_IMPORT_API_KEY = "replace-with-a-long-random-secret-value"
+docker compose up -d --force-recreate backend
+```
+
+For production, set the same secret in the backend's Fly app:
+
+```powershell
+fly secrets set RecipeImport__ApiKey="replace-with-a-long-random-secret-value"
+```
+
+Send `POST /api/recipe-imports` with `Content-Type: application/json` and
+`X-Recipe-Import-Key`. Payload uses recipe write fields (`name`, `description`,
+`servings`, `prepTimeMinutes`, `cookTimeMinutes`, `mealType`, `course`,
+`cookingMethod`, `cuisine`, nutrition fields, `tags`, `ingredients`, `steps`,
+`equipment`) plus `sourceUrl`. Example:
+
+```json
+{
+  "name": "Example recipe",
+  "description": "Adapted from the linked source.",
+  "sourceUrl": "https://example.com/recipe",
+  "servings": 4,
+  "prepTimeMinutes": 15,
+  "cookTimeMinutes": 30,
+  "mealType": "Dinner",
+  "course": "Main",
+  "cookingMethod": "Oven",
+  "cuisine": "Example",
+  "tags": ["weeknight"],
+  "ingredients": [
+    { "name": "Tomatoes", "quantity": 2, "unit": "piece" }
+  ],
+  "steps": ["Prepare ingredients.", "Cook until done."],
+  "equipment": ["Baking dish"]
+}
+```
+
+Admin users review drafts under **Review drafts**. Edit the imported details,
+then check **Publish this recipe to public library** before saving. Drafts are
+hidden from public search, recipe details, home dashboard, and cooking logs
+until published. Existing recipes remain published after the migration.
 Deploy each service from its project directory:
 
 ```powershell

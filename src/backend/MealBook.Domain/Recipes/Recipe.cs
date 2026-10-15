@@ -68,7 +68,7 @@ public sealed class Recipe
             FatGramsPerServing = fatGramsPerServing,
             AddedAt = addedAt ?? DateTimeOffset.UtcNow,
             IsPublished = isPublished,
-            SourceUrl = sourceUrl?.Trim(),
+            SourceUrl = string.IsNullOrWhiteSpace(sourceUrl) ? null : sourceUrl.Trim(),
             Ingredients = ingredients.ToList(),
             Steps = steps.ToList(),
             Equipment = equipment.ToList(),
@@ -132,6 +132,7 @@ public sealed class RecipeIngredient
     public string Name { get; private set; } = string.Empty;
     public decimal Quantity { get; private set; }
     public string Unit { get; private set; } = string.Empty;
+    public string? Section { get; private set; }
     public string? Notes { get; private set; }
     public int Position { get; private set; }
 
@@ -139,6 +140,7 @@ public sealed class RecipeIngredient
         string name,
         decimal quantity,
         string unit,
+        string? section,
         string? notes,
         int position) =>
         new()
@@ -147,6 +149,7 @@ public sealed class RecipeIngredient
             Name = name.Trim(),
             Quantity = quantity,
             Unit = unit.Trim(),
+            Section = string.IsNullOrWhiteSpace(section) ? null : section.Trim(),
             Notes = notes?.Trim(),
             Position = position
         };

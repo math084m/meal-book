@@ -6,6 +6,7 @@ export interface RecipeIngredient {
   name: string;
   quantity: number;
   unit: string;
+  section?: string | null;
   notes?: string | null;
 }
 
@@ -25,6 +26,8 @@ export interface Recipe {
   carbohydratesGramsPerServing?: number | null;
   fatGramsPerServing?: number | null;
   addedAt: string;
+  isPublished: boolean;
+  sourceUrl?: string | null;
   cookCount: number;
   recentCookCount: number;
   averageRating?: number | null;
@@ -77,6 +80,8 @@ export interface RecipeWrite {
   proteinGramsPerServing: number | null;
   carbohydratesGramsPerServing: number | null;
   fatGramsPerServing: number | null;
+  isPublished: boolean;
+  sourceUrl: string;
   tags: string[];
   ingredients: RecipeIngredient[];
   steps: string[];
@@ -95,6 +100,10 @@ export class RecipeApiService {
 
   getRecipe(id: string): Observable<Recipe> {
     return this.http.get<Recipe>(`${apiUrl}recipes/${id}`);
+  }
+
+  getDrafts(): Observable<Recipe[]> {
+    return this.http.get<Recipe[]>(`${apiUrl}recipes/admin/drafts`);
   }
 
   getDashboard(): Observable<RecipeDashboard> {

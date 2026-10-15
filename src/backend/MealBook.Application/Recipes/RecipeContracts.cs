@@ -4,6 +4,7 @@ public sealed record RecipeIngredientResponse(
     string Name,
     decimal Quantity,
     string Unit,
+    string? Section = null,
     string? Notes = null);
 
 public sealed record RecipeResponse(
@@ -106,10 +107,6 @@ public abstract class RecipeWriteRequest
 
 public sealed class ImportRecipeRequest : RecipeWriteRequest
 {
-    [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.StringLength(2048)]
-    [System.ComponentModel.DataAnnotations.Url]
-    public string SourceUrl { get; init; } = string.Empty;
 }
 
 [AttributeUsage(AttributeTargets.Property)]
@@ -132,8 +129,10 @@ public sealed class CreateRecipeIngredientRequest
     public decimal Quantity { get; init; }
 
     [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.StringLength(80, MinimumLength = 1)]
     public string Unit { get; init; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    public string Section { get; init; } = string.Empty;
 
     [System.ComponentModel.DataAnnotations.StringLength(500)]
     public string? Notes { get; init; }
