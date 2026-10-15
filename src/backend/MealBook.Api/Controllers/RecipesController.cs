@@ -17,6 +17,13 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await recipes.GetAllAsync(search, cancellationToken));
 
+    [HttpGet("admin/drafts")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType<IReadOnlyList<RecipeResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<RecipeResponse>>> GetDrafts(
+        CancellationToken cancellationToken) =>
+        Ok(await recipes.GetDraftsAsync(cancellationToken));
+
     [HttpGet("dashboard")]
     [AllowAnonymous]
     [ProducesResponseType<RecipeDashboardResponse>(StatusCodes.Status200OK)]
@@ -48,6 +55,11 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
         CancellationToken cancellationToken)
     {
         var recipe = await recipes.GetByIdAsync(id, cancellationToken);
+        if (recipe is { IsPublished: false } && !User.IsInRole("Admin"))
+        {
+            return NotFound();
+        }
+
         return recipe is null ? NotFound() : Ok(recipe);
     }
 
