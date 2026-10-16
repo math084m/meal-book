@@ -7,6 +7,7 @@
     <nav [attr.aria-label]="i18n.t('nav.aria')">
       <a routerLink="/recipes" routerLinkActive="active">{{ i18n.t('nav.recipes') }}</a>
       @if (auth.currentUser()) {
+        <a routerLink="/plan" routerLinkActive="active">{{ i18n.t('nav.plan') }}@if (plan.count()) { <span class="nav-badge">{{ plan.count() }}</span> }</a>
         <a routerLink="/history" routerLinkActive="active">{{ i18n.t('nav.history') }}</a>
         @if (auth.currentUser()?.isAdmin) {
           <a routerLink="/admin/recipes/drafts">{{ i18n.t('nav.drafts') }}</a>

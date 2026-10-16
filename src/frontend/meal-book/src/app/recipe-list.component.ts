@@ -6,13 +6,14 @@ import { RouterLink } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { Recipe, RecipeApiService, RecipeSuggestion } from './recipe-api.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
+import { PlanButtonComponent } from './plan-button.component';
 import { I18nService, TranslationKey } from './i18n.service';
 import { CatalogService } from './catalog.service';
 import { SelectFieldComponent } from './select-field.component';
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink, DecimalPipe, SelectFieldComponent, RecipeImagePipe],
+  imports: [FormsModule, RouterLink, DecimalPipe, SelectFieldComponent, RecipeImagePipe, PlanButtonComponent],
   template: `
     <section class="page-heading">
       <p class="eyebrow">{{ i18n.t('list.eyebrow') }}</p>
@@ -107,6 +108,7 @@ import { SelectFieldComponent } from './select-field.component';
           <div class="recipe-grid">
             @for (recipe of recipeList; track recipe.id) {
               <a class="recipe-card" [routerLink]="['/recipes', recipe.id]">
+                <app-plan-button class="card-plan" [recipeId]="recipe.id" [compact]="true" />
                 @if (recipe.imageUrl | recipeImage; as src) { <img class="card-image" [src]="src" alt="" loading="lazy" /> }
                 <p class="eyebrow">{{ catalog.label('cuisine', recipe.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('course', recipe.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>
                 <h3>{{ recipe.name }}</h3>

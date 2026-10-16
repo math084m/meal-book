@@ -8,10 +8,11 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
 import { CatalogService } from './catalog.service';
 import { formatAmount } from './servings-scaling';
+import { PlanButtonComponent } from './plan-button.component';
 
 @Component({
   standalone: true,
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, RecipeImagePipe],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, RecipeImagePipe, PlanButtonComponent],
   template: `
     @if (recipe(); as item) {
       <a class="back-link" routerLink="/recipes">{{ i18n.t('common.backToRecipes') }}</a>
@@ -38,6 +39,7 @@ import { formatAmount } from './servings-scaling';
           @for (slug of item.cuisines; track slug) { <span class="tag">{{ catalog.label('cuisine', slug) }}</span> }
           @for (tag of item.tags; track tag) { <span class="tag">{{ catalog.label('tag', tag) }}</span> }
         </div>
+        <div class="admin-actions"><app-plan-button [recipeId]="item.id" /></div>
         @if (auth.currentUser()?.isAdmin) {
           <div class="admin-actions">
             <a class="button secondary" [routerLink]="['/admin/recipes', item.id, 'edit']">{{ i18n.t('detail.edit') }}</a>

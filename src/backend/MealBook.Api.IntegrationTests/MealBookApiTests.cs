@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
 
 namespace MealBook.Api.IntegrationTests;
@@ -429,12 +430,182 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task MealPlan_AggregatesShoppingListBySection_TracksChecks_AndSuggestsRecipes()
+    {
+        using var anonymous = fixture.Factory.CreateClient();
+        using var denied = await anonymous.GetAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+        using var cleared = await client.DeleteAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
+
+        var first = await CreatePlanRecipeAsync(client, "Plan A", 2, (tomatoId, 2m, "dl"), (onionId, 1m, "piece"));
+        var second = await CreatePlanRecipeAsync(client, "Plan B", 4, (tomatoId, 100m, "ml"));
+        var third = await CreatePlanRecipeAsync(client, "Plan C", 2, (tomatoId, 1m, "piece"));
+        var draft = await CreatePlanRecipeAsync(client, "Plan draft", 2, (tomatoId, 1m, "piece"), published: false);
+
+        using var addFirst = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{first}", new { });
+        Assert.Equal(HttpStatusCode.NoContent, addFirst.StatusCode);
+        using var addSecond = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{second}", new { servings = 8 });
+        Assert.Equal(HttpStatusCode.NoContent, addSecond.StatusCode);
+        using var unknown = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{Guid.NewGuid()}", new { });
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        using var unpublished = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{draft}", new { });
+        Assert.Equal(HttpStatusCode.NotFound, unpublished.StatusCode);
+        using var badServings = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{second}/servings", new { servings = 0 });
+        Assert.Equal(HttpStatusCode.BadRequest, badServings.StatusCode);
+
+        var plan = await ReadJsonAsync(await client.GetAsync("/api/meal-plan?lang=en"));
+        Assert.Equal(2, plan.GetProperty("entries").GetArrayLength());
+        var produce = plan.GetProperty("sections").EnumerateArray()
+            .Single(section => section.GetProperty("slug").GetString() == "produce");
+        var tomato = produce.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "Tomato");
+        // 2 dl for the planned 2 servings plus 100 ml scaled from 4 to 8 servings: 200 + 200 ml.
+        Assert.Equal(400m, tomato.GetProperty("quantity").GetDecimal());
+        Assert.Equal("ml", tomato.GetProperty("unit").GetString());
+        Assert.Equal(2, tomato.GetProperty("recipes").GetArrayLength());
+        Assert.False(tomato.GetProperty("checked").GetBoolean());
+
+        using var check = await client.PutAsJsonAsync(
+            "/api/meal-plan/checks",
+            new { ingredientId = tomatoId, unit = "ml", @checked = true });
+        Assert.Equal(HttpStatusCode.NoContent, check.StatusCode);
+        var checkedPlan = await ReadJsonAsync(await client.GetAsync("/api/meal-plan"));
+        Assert.True(checkedPlan.GetProperty("sections").EnumerateArray()
+            .SelectMany(section => section.GetProperty("items").EnumerateArray())
+            .Single(item => item.GetProperty("name").GetString() == "Tomato")
+            .GetProperty("checked").GetBoolean());
+
+        var suggestions = await ReadJsonAsync(await client.GetAsync("/api/meal-plan/suggestions"));
+        var suggestedIds = suggestions.EnumerateArray().Select(item => item.GetProperty("recipeId").GetGuid()).ToList();
+        Assert.DoesNotContain(first, suggestedIds);
+        Assert.DoesNotContain(second, suggestedIds);
+        Assert.DoesNotContain(draft, suggestedIds);
+        Assert.All(suggestions.EnumerateArray(), item => Assert.True(item.GetProperty("sharedIngredients").GetArrayLength() > 0));
+        Assert.Contains(third, suggestedIds);
+
+        using var removed = await client.DeleteAsync($"/api/meal-plan/recipes/{first}");
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        using var removedAgain = await client.DeleteAsync($"/api/meal-plan/recipes/{first}");
+        Assert.Equal(HttpStatusCode.NotFound, removedAgain.StatusCode);
+
+        using var emptied = await client.DeleteAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.NoContent, emptied.StatusCode);
+        var empty = await ReadJsonAsync(await client.GetAsync("/api/meal-plan"));
+        Assert.Equal(0, empty.GetProperty("entries").GetArrayLength());
+        Assert.Equal(0, empty.GetProperty("sections").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task MealPlanChanges_ArePushedToConnectedClients_ThroughTheHub()
+    {
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+        var token = client.DefaultRequestHeaders.Authorization!.Parameter!;
+        var recipeId = await CreatePlanRecipeAsync(client, "Realtime", 2, (tomatoId, 1m, "piece"));
+
+        var server = fixture.Factory.Server;
+        await using var anonymousConnection = new Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilder()
+            .WithUrl(new Uri(server.BaseAddress, "/api/hubs/mealplan"), options =>
+            {
+                options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+            })
+            .Build();
+        await Assert.ThrowsAnyAsync<Exception>(() => anonymousConnection.StartAsync());
+
+        var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilder()
+            .WithUrl(new Uri(server.BaseAddress, "/api/hubs/mealplan"), options =>
+            {
+                options.AccessTokenProvider = () => Task.FromResult<string?>(token);
+                options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+            })
+            .Build();
+        connection.On("planChanged", () => changed.TrySetResult());
+        await connection.StartAsync();
+
+        using var add = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{recipeId}", new { });
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+        await changed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using var cleared = await client.DeleteAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
+    }
+
+    [Fact]
+    public async Task ShopSections_AreListed_AndIngredientsRequireAKnownSection()
+    {
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+
+        var sections = await ReadJsonAsync(await client.GetAsync("/api/shop-sections"));
+        Assert.Equal(9, sections.GetArrayLength());
+        Assert.Contains(sections.EnumerateArray(), section => section.GetProperty("slug").GetString() == "dairy");
+
+        var name = $"Sectioned {Guid.NewGuid():N}";
+        using var bad = await client.PostAsJsonAsync(
+            "/api/ingredients",
+            new { nameEn = name, nameDa = "Sektion", shopSectionSlug = "nope" });
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        using var created = await client.PostAsJsonAsync(
+            "/api/ingredients",
+            new { nameEn = name, nameDa = "Sektion", shopSectionSlug = "frozen" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal("frozen", (await ReadJsonAsync(created)).GetProperty("shopSectionSlug").GetString());
+    }
+
+    [Fact]
     public async Task RecipeEndpoints_RequireAdminForDraftListing()
     {
         using var client = fixture.Factory.CreateClient();
 
         using var response = await client.GetAsync("/api/recipes/admin/drafts");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static async Task<Guid> CreatePlanRecipeAsync(
+        HttpClient client,
+        string name,
+        int servings,
+        params (Guid IngredientId, decimal Quantity, string Unit)[] lines)
+        => await CreatePlanRecipeAsync(client, name, servings, true, lines);
+
+    private static async Task<Guid> CreatePlanRecipeAsync(
+        HttpClient client,
+        string name,
+        int servings,
+        (Guid IngredientId, decimal Quantity, string Unit) line,
+        bool published)
+        => await CreatePlanRecipeAsync(client, name, servings, published, [line]);
+
+    private static async Task<Guid> CreatePlanRecipeAsync(
+        HttpClient client,
+        string name,
+        int servings,
+        bool published,
+        (Guid IngredientId, decimal Quantity, string Unit)[] lines)
+    {
+        using var response = await client.PostAsJsonAsync("/api/recipes", new
+        {
+            name = $"{name} {Guid.NewGuid():N}",
+            servings,
+            isPublished = published,
+            ingredients = lines.Select(line => new
+            {
+                ingredientId = line.IngredientId,
+                quantity = line.Quantity,
+                unit = line.Unit,
+                section = "Main"
+            }).ToArray(),
+            steps = new[] { "Cook." }
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await ReadJsonAsync(response)).GetProperty("id").GetGuid();
     }
 
     private static async Task SignInAdminAsync(HttpClient client)

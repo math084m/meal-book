@@ -100,6 +100,13 @@ The development connection string is in `appsettings.Development.json`.
 Compose keeps database files in the `mealbook-postgres` named volume;
 `docker compose down -v` removes that volume and permanently deletes local data.
 
+## Meal planner and shopping list
+
+Signed-in users share one household plan (`/plan`). Add recipes with the "Add to plan" button; the shopping list is aggregated across recipes (scaled by planned servings, volumes summed in ml, weights in g) and grouped by shop section (`ShopSections` table, assigned per ingredient in the admin ingredients page). Checked items are shared too.
+
+- Realtime: every change calls Postgres `NOTIFY meal_plan_changed`; each API instance `LISTEN`s and pushes `planChanged` over SignalR (`/api/hubs/mealplan`), and clients refetch. This needs a direct (non-pooled) Postgres connection for LISTEN, and the proxy should allow WebSockets (SignalR falls back to SSE/long polling otherwise).
+- Suggestions: recipes sharing perishable ingredients with the plan score highest, rarer ingredients weigh more, and extra perishables are penalised. "Perishable" comes from the section (`ShopSections.Perishable`), so e.g. onions count as fresh.
+
 ## Fly.io and a `/meals/` subroute
 
 The frontend and API have separate Dockerfiles and Fly app configs. Update

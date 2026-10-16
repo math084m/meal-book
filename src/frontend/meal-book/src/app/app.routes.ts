@@ -7,6 +7,7 @@ import { RegisterComponent } from './register.component';
 import { CookingHistoryComponent } from './cooking-history.component';
 import { AdminRecipeFormComponent } from './admin-recipe-form.component';
 import { adminGuard, userGuard } from './auth.guard';
+import { PlanComponent } from './plan.component';
 import { AdminDraftsComponent } from './admin-drafts.component';
 import { AdminIngredientsComponent } from './admin-ingredients.component';
 
@@ -17,6 +18,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'history', component: CookingHistoryComponent, canActivate: [userGuard] },
+  { path: 'plan', component: PlanComponent, canActivate: [userGuard] },
   { path: 'admin/recipes/new', component: AdminRecipeFormComponent, canActivate: [adminGuard] },
   { path: 'admin/recipes/drafts', component: AdminDraftsComponent, canActivate: [adminGuard] },
   { path: 'admin/ingredients', component: AdminIngredientsComponent, canActivate: [adminGuard] },

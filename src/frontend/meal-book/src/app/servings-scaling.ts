@@ -132,6 +132,11 @@ function weightText(grams: number, language: AmountLanguage): string {
   return `${formatNumber(rounded, language, 1)} g`;
 }
 
+// Formats a summed amount (already in a base unit like ml or g) with the best-fitting display unit.
+export function formatTotal(quantity: number, unit: string, language: AmountLanguage): string {
+  return formatAmount(quantity / 2, unit, 2, language);
+}
+
 // At factor 1 the stored amount is shown untouched; otherwise a fitting unit and rounding is chosen.
 export function formatAmount(quantity: number, unit: string, factor: number, language: AmountLanguage): string {
   const key = unit.trim().toLowerCase();

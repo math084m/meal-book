@@ -249,6 +249,7 @@ h2 {
 }
 
 .recipe-card {
+  position: relative;
   display: block;
   padding: 1.4rem;
   color: inherit;
@@ -264,6 +265,23 @@ h2 {
 .recipe-card h3 {
   margin: 0 0 0.5rem;
   font-size: 1.5rem;
+}
+
+.card-plan {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+}
+
+.nav-badge {
+  margin-left: 0.35rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--green);
+  color: var(--button-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .card-image {

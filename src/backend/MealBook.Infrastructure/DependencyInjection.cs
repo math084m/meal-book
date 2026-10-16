@@ -30,6 +30,12 @@ public static class DependencyInjection
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddSingleton<IImageStorage, MealBook.Infrastructure.Storage.S3ImageStorage>();
         services.AddScoped<ICatalogRepository, CatalogRepository>();
+        services.AddScoped<MealBook.Application.Planning.IMealPlanRepository, MealPlanRepository>();
+        services.AddScoped<MealBook.Application.Planning.IMealPlanNotifier, PgMealPlanNotifier>();
+        services.AddHostedService(provider => new MealPlanChangeListener(
+            connectionString,
+            provider.GetRequiredService<MealBook.Application.Planning.IPlanChangeBroadcaster>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MealPlanChangeListener>>()));
         services.AddScoped<IDatabaseHealth, DatabaseHealth>();
         services.AddScoped<AdminUserSeeder>();
         services.AddSingleton(new DatabaseMigrationRunner(connectionString));

@@ -1,4 +1,11 @@
-import { formatAmount, formatFriendly } from './servings-scaling';
+import { formatAmount, formatFriendly, formatTotal } from './servings-scaling';
+
+describe('shopping totals', () => {
+  it('formats a summed amount', () => {
+    expect(formatTotal(500, 'g', 'en')).toBe('500 g');
+    expect(formatTotal(3, 'pcs', 'en')).toBe('3 pcs');
+  });
+});
 
 describe('servings scaling', () => {
   it('shows the stored amount untouched at factor 1', () => {

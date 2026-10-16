@@ -92,6 +92,26 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         shopSection.Property(item => item.NameEn).HasMaxLength(80).IsRequired();
         shopSection.Property(item => item.NameDa).HasMaxLength(80).IsRequired();
 
+        var planEntry = modelBuilder.Entity<MealBook.Domain.Planning.MealPlanEntry>();
+        planEntry.ToTable("MealPlanEntries");
+        planEntry.HasKey(item => item.Id);
+        planEntry.Property(item => item.AddedByUserId).HasMaxLength(450).IsRequired();
+        planEntry.HasIndex(item => item.RecipeId).IsUnique();
+        planEntry.HasOne<Recipe>()
+            .WithMany()
+            .HasForeignKey(item => item.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var shoppingCheck = modelBuilder.Entity<MealBook.Domain.Planning.ShoppingCheck>();
+        shoppingCheck.ToTable("ShoppingChecks");
+        shoppingCheck.HasKey(item => new { item.IngredientId, item.Unit });
+        shoppingCheck.Property(item => item.Unit).HasMaxLength(40);
+        shoppingCheck.Property(item => item.CheckedByUserId).HasMaxLength(450).IsRequired();
+        shoppingCheck.HasOne<Ingredient>()
+            .WithMany()
+            .HasForeignKey(item => item.IngredientId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         var term = modelBuilder.Entity<Term>();
         term.ToTable("Terms");
         term.HasKey(item => new { item.Kind, item.Slug });

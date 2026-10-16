@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { I18nService, Language, languages } from './i18n.service';
 import { ThemeService } from './theme.service';
 import { CatalogService } from './catalog.service';
+import { PlanService } from './plan.service';
 
 @Component({
   selector: 'app-root',
@@ -17,6 +18,7 @@ export class AppComponent implements OnInit {
   readonly languages = languages;
   readonly themeService = inject(ThemeService);
   private readonly catalog = inject(CatalogService);
+  readonly plan = inject(PlanService);
 
   setLanguage(event: Event): void {
     this.i18n.setLanguage((event.target as HTMLSelectElement).value as Language);

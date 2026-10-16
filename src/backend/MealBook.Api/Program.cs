@@ -9,6 +9,8 @@ using System.Security.Claims;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<MealBook.Application.Planning.IPlanChangeBroadcaster, MealBook.Api.Realtime.MealPlanHubBroadcaster>();
 builder.Services
     .AddIdentityApiEndpoints<AppUser>(options =>
     {
@@ -22,6 +24,19 @@ builder.Services
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<RecipeDbContext>();
 builder.Services.AddAuthorization();
+// Browsers cannot set an Authorization header on a WebSocket, so the hub accepts the token as a query value.
+builder.Services.Configure<Microsoft.AspNetCore.Authentication.BearerToken.BearerTokenOptions>(
+    IdentityConstants.BearerScheme,
+    options => options.Events.OnMessageReceived = context =>
+    {
+        if (context.Request.Path.StartsWithSegments(MealBook.Api.Realtime.MealPlanHub.Route)
+            && context.Request.Query.TryGetValue("access_token", out var token))
+        {
+            context.Token = token;
+        }
+
+        return Task.CompletedTask;
+    });
 builder.Services
     .AddMealBookApplication()
     .AddMealBookInfrastructure(builder.Configuration);
@@ -134,6 +149,7 @@ app.MapGet("/api/auth/me", (ClaimsPrincipal principal) =>
             principal.IsInRole("Admin"))))
     .RequireAuthorization();
 app.MapControllers();
+app.MapHub<MealBook.Api.Realtime.MealPlanHub>(MealBook.Api.Realtime.MealPlanHub.Route);
 if (serveFrontend)
 {
     app.MapFallbackToFile(
