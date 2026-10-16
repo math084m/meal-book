@@ -164,6 +164,35 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task PublishEndpoint_RequiresAdmin_AndMakesDraftPublic()
+    {
+        using var importClient = fixture.Factory.CreateClient();
+        importClient.DefaultRequestHeaders.Add("X-Recipe-Import-Key", new string('k', 48));
+        using var imported = await importClient.PostAsJsonAsync(
+            "/api/recipe-imports",
+            ImportRecipe($"Publish endpoint recipe {Guid.NewGuid():N}"));
+        Assert.Equal(HttpStatusCode.Created, imported.StatusCode);
+        using var importedBody = JsonDocument.Parse(await imported.Content.ReadAsStringAsync());
+        var recipeId = importedBody.RootElement.GetProperty("id").GetGuid();
+
+        using var anonymousClient = fixture.Factory.CreateClient();
+        using var denied = await anonymousClient.PostAsync($"/api/recipes/{recipeId}/publish", null);
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        using var adminClient = fixture.Factory.CreateClient();
+        await SignInAdminAsync(adminClient);
+        using var published = await adminClient.PostAsync($"/api/recipes/{recipeId}/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        using var publishedBody = JsonDocument.Parse(await published.Content.ReadAsStringAsync());
+        Assert.True(publishedBody.RootElement.GetProperty("isPublished").GetBoolean());
+
+        using var visible = await anonymousClient.GetAsync($"/api/recipes/{recipeId}");
+        Assert.Equal(HttpStatusCode.OK, visible.StatusCode);
+        using var missing = await adminClient.PostAsync($"/api/recipes/{Guid.NewGuid()}/publish", null);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
     public async Task RecipeEndpoints_RequireAdminForDraftListing()
     {
         using var client = fixture.Factory.CreateClient();
@@ -204,9 +233,9 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         equipment = new[] { "Pan" }
     };
 
-    private static object ImportRecipe() => new
+    private static object ImportRecipe(string name = "Imported integration recipe") => new
     {
-        name = "Imported integration recipe",
+        name,
         description = "Imported draft.",
         sourceUrl = "https://example.com/recipe",
         servings = 2,

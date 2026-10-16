@@ -25,6 +25,8 @@ public interface IRecipeService
         UpdateRecipeRequest request,
         CancellationToken cancellationToken);
 
+    Task<RecipeResponse?> PublishAsync(Guid id, CancellationToken cancellationToken);
+
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 
     Task<RecipeCookedResponse?> LogCookedAsync(

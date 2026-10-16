@@ -88,6 +88,18 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
         return recipe is null ? NotFound() : Ok(recipe);
     }
 
+    [HttpPost("{id:guid}/publish")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType<RecipeResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<RecipeResponse>> Publish(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var recipe = await recipes.PublishAsync(id, cancellationToken);
+        return recipe is null ? NotFound() : Ok(recipe);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

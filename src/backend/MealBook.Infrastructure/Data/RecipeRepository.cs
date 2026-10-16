@@ -143,6 +143,19 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         return true;
     }
 
+    public async Task<bool> PublishAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var recipe = await db.Recipes.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (recipe is null)
+        {
+            return false;
+        }
+
+        recipe.Publish();
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var recipe = await db.Recipes.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);

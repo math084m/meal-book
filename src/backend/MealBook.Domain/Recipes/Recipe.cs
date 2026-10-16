@@ -28,6 +28,8 @@ public sealed class Recipe
     public List<RecipeEquipment> Equipment { get; private set; } = [];
     public List<RecipeTag> Tags { get; private set; } = [];
 
+    public void Publish() => IsPublished = true;
+
     public static Recipe Create(
         string name,
         string? description,

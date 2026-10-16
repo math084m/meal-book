@@ -75,6 +75,11 @@ public sealed class RecipeService(IRecipeRepository repository) : IRecipeService
         return await GetByIdAsync(id, cancellationToken);
     }
 
+    public async Task<RecipeResponse?> PublishAsync(Guid id, CancellationToken cancellationToken) =>
+        await repository.PublishAsync(id, cancellationToken)
+            ? await GetByIdAsync(id, cancellationToken)
+            : null;
+
     public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken) =>
         repository.DeleteAsync(id, cancellationToken);
 

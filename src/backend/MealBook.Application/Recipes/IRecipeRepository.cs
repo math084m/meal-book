@@ -16,6 +16,8 @@ public interface IRecipeRepository
 
     Task<bool> UpdateAsync(Recipe recipe, CancellationToken cancellationToken);
 
+    Task<bool> PublishAsync(Guid id, CancellationToken cancellationToken);
+
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 
     Task<RecipeCookedResponse?> LogCookedAsync(

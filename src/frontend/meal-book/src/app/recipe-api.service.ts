@@ -126,6 +126,10 @@ export class RecipeApiService {
     return this.http.put<Recipe>(`${apiUrl}recipes/${id}`, recipe);
   }
 
+  publishRecipe(id: string): Observable<Recipe> {
+    return this.http.post<Recipe>(`${apiUrl}recipes/${id}/publish`, {});
+  }
+
   deleteRecipe(id: string): Observable<void> {
     return this.http.delete<void>(`${apiUrl}recipes/${id}`);
   }
