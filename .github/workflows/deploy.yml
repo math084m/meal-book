@@ -29,7 +29,7 @@ jobs:
     env:
       MEALBOOK_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=mealbook_tests;Username=postgres;Password=postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -57,7 +57,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy
         run: flyctl deploy --remote-only
