@@ -160,7 +160,7 @@ import { formatTotal } from './servings-scaling';
     .plan-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
     .plan-list, .shop-list { list-style: none; margin: 0; padding: 0; }
     .plan-list li { display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem 0; border-top: 1px solid var(--line); }
-    .plan-thumb { width: 3.2rem; height: 2.2rem; object-fit: cover; border-radius: 6px; }
+    .plan-thumb { width: 3.2rem; height: 2.2rem; object-fit: cover; border-radius: 0; }
     .plan-name { flex: 1; min-width: 0; }
     .plan-stepper { display: inline-flex; align-items: center; gap: 0.4rem; }
     .small-text { font-size: 0.85rem; }
@@ -174,7 +174,7 @@ import { formatTotal } from './servings-scaling';
     .shop-list li.done .shop-name { text-decoration: line-through; color: var(--muted); }
     .have-select { flex: none; width: auto; min-height: 0; padding: 0.25rem 0.4rem; font-size: 0.82rem; color: var(--muted); }
     .plan-head .link-button { background: none; border: 0; padding: 0; color: var(--green); font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
-    .live-pill { margin-left: 0.5rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--green-wash); color: var(--tag-ink); font-size: 0.78rem; }
+    .live-pill { margin-left: 0.5rem; padding: 0.1rem 0.5rem; border: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--tag-ink); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; }
     .live-pill.off { background: transparent; border: 1px solid var(--line); color: var(--muted); }
   `
 })

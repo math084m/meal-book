@@ -66,15 +66,16 @@ import { SelectOption } from './catalog.service';
     .select-trigger {
       display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
       min-height: 42px; padding: 0.35rem 0.7rem; border: 1px solid var(--input-line);
-      border-radius: 5px; color: var(--ink); background: var(--input-bg);
-      font-size: 0.92rem; font-weight: 400; cursor: pointer;
+      border-radius: 0; color: var(--ink); background: var(--input-bg);
+      font-size: 0.95rem; font-weight: 300; cursor: pointer;
     }
     .select-trigger:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--green); }
     .select-summary { display: flex; flex-wrap: wrap; gap: 0.3rem; min-width: 0; }
     .select-placeholder { color: var(--muted); }
     .select-chip {
       display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.2rem 0.15rem 0.55rem;
-      border-radius: 30px; color: var(--tag-ink); background: var(--green-wash); font-size: 0.78rem;
+      border: 1px solid var(--line); color: var(--tag-ink); background: transparent; font-size: 0.7rem;
+      letter-spacing: 0.08em; text-transform: uppercase;
     }
     .chip-remove {
       width: 1.2rem; height: 1.2rem; padding: 0; border: 0; border-radius: 50%;
@@ -84,14 +85,14 @@ import { SelectOption } from './catalog.service';
     .select-caret { color: var(--muted); flex: none; }
     .select-panel {
       position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
-      border: 1px solid var(--input-line); border-radius: 8px; background: var(--paper);
-      box-shadow: 0 10px 28px rgb(0 0 0 / 18%); padding: 0.4rem;
+      border: 1px solid var(--input-line); border-radius: 0; background: var(--paper);
+      box-shadow: 0 14px 34px rgb(0 0 0 / 14%); padding: 0.4rem;
     }
     .select-search { margin-bottom: 0.4rem; }
     .select-options { max-height: 240px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
     .select-option {
       display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.45rem 0.5rem;
-      border: 0; border-radius: 5px; color: var(--ink); background: transparent;
+      border: 0; border-radius: 0; color: var(--ink); background: transparent;
       font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer;
     }
     .select-option:hover { background: var(--green-wash); }

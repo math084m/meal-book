@@ -25,7 +25,7 @@ import { I18nService } from './i18n.service';
       width: 2.2rem; height: 2.2rem; border-radius: 50%; border: 1px solid var(--line);
       background: var(--paper); color: var(--green); font-size: 1.1rem; cursor: pointer; line-height: 1;
     }
-    .fav-button.active { color: #d9a400; border-color: #d9a400; }
+    .fav-button.active { color: var(--green); border-color: var(--green); }
     .fav-button:hover { border-color: var(--hover-line); }
   `
 })

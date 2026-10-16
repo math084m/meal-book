@@ -146,21 +146,21 @@ import { SelectFieldComponent } from './select-field.component';
   `,
   styles: `
     .field { display: flex; flex-direction: column; gap: 0.4rem; position: relative; }
-    .field > label { color: var(--label); font-size: 0.84rem; font-weight: 650; }
+    .field > label { color: var(--label); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; }
     .suggestions {
       position: absolute; z-index: 30; top: 100%; left: 0; right: 0; margin: 4px 0 0; padding: 0.3rem;
-      list-style: none; border: 1px solid var(--input-line); border-radius: 8px;
-      background: var(--paper); box-shadow: 0 10px 28px rgb(0 0 0 / 18%);
+      list-style: none; border: 1px solid var(--input-line); border-radius: 0;
+      background: var(--paper); box-shadow: 0 14px 34px rgb(0 0 0 / 14%);
     }
-    .suggestions a { display: block; padding: 0.45rem 0.6rem; border-radius: 5px; color: var(--ink); text-decoration: none; font-size: 0.9rem; }
+    .suggestions a { display: block; padding: 0.45rem 0.6rem; border-radius: 0; color: var(--ink); text-decoration: none; font-size: 0.9rem; }
     .suggestions a:hover { background: var(--green-wash); }
     .time-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
     .time-chip {
-      padding: 0.4rem 0.85rem; border: 1px solid var(--input-line); border-radius: 30px;
-      color: var(--ink); background: var(--input-bg); font: inherit; font-size: 0.85rem; cursor: pointer;
+      padding: 0.4rem 0.9rem; border: 1px solid var(--input-line); border-radius: 0;
+      color: var(--ink); background: var(--input-bg); font: inherit; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
     }
     .time-chip:hover { border-color: var(--hover-line); }
-    .time-chip.active { border-color: var(--green); color: var(--tag-ink); background: var(--green-wash); font-weight: 650; }
+    .time-chip.active { border-color: var(--green); color: var(--tag-ink); background: var(--green-wash); font-weight: 500; }
   `
 })
 export class RecipeListComponent {

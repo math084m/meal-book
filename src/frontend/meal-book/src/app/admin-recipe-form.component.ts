@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { RecipeApiService, RecipeIngredient, RecipeWrite, apiUrl } from './recipe-api.service';
@@ -132,6 +133,7 @@ import { SelectFieldComponent } from './select-field.component';
 })
 export class AdminRecipeFormComponent implements OnInit {
   private readonly api = inject(RecipeApiService);
+  private readonly http = inject(HttpClient);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly i18n = inject(I18nService);
@@ -175,7 +177,14 @@ export class AdminRecipeFormComponent implements OnInit {
     this.api.getRecipe(this.recipeId, true).subscribe({
       next: recipe => {
         this.hadImage = !!recipe.imageUrl;
-        this.previewUrl.set(recipe.imageUrl ? `${apiUrl}${recipe.imageUrl}` : null);
+        this.previewUrl.set(null);
+        if (recipe.imageUrl) {
+          this.http.get(`${apiUrl}${recipe.imageUrl}`, { responseType: 'blob' }).subscribe({
+            next: blob => {
+              if (!this.pendingImage) this.previewUrl.set(URL.createObjectURL(blob));
+            }
+          });
+        }
         const sections = new Map<string, IngredientSection>();
         for (const ingredient of recipe.ingredients) {
           const name = ingredient.section?.trim() || 'Ingredients';

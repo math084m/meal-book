@@ -1,4 +1,14 @@
-import { parseStepDuration } from './cook-mode.component';
+import { ingredientKeywords, parseStepDuration } from './cook-mode.component';
+
+describe('ingredientKeywords', () => {
+  it('drops descriptors and trims plurals', () => {
+    expect(ingredientKeywords('Fresh parsley')).toEqual(['parsley']);
+    expect(ingredientKeywords('Large eggs')).toEqual(['egg']);
+    expect(ingredientKeywords('Hakket oksekød')).toEqual(['oksekød']);
+    expect(ingredientKeywords('Æg')).toEqual(['æg']);
+    expect(ingredientKeywords('Fed hvidløg')).toEqual(['hvidløg']);
+  });
+});
 
 describe('parseStepDuration', () => {
   it('parses minutes and hours', () => {

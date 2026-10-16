@@ -19,6 +19,18 @@ export function parseStepDuration(text: string): number | null {
   return seconds > 0 && seconds <= 12 * 3600 ? seconds : null;
 }
 
+const ignoredWords = new Set([
+  'of', 'and', 'or', 'the', 'with', 'og', 'eller', 'med', 'en', 'et', 'de', 'di', 'da', 'la', 'fed', 'clove', 'cloves',
+  'fresh', 'freshly', 'ground', 'large', 'small', 'medium', 'chopped', 'finely', 'whole', 'dried', 'sliced', 'diced', 'grated', 'optional', 'taste', 'plus', 'extra', 'good', 'quality', 'cold', 'warm', 'hot',
+  'frisk', 'friske', 'malet', 'stor', 'store', 'lille', 'hakket', 'hakkede', 'tørret', 'revet', 'skåret', 'efter', 'smag', 'evt', 'plus', 'god', 'kvalitet', 'varm', 'kold', 'hel', 'hele'
+]);
+
+// Lower-cased words from an ingredient name that identify it in step text, with a light plural trim.
+export function ingredientKeywords(name: string): string[] {
+  const words = name.toLocaleLowerCase().split(/[^\p{L}]+/u).filter(word => word.length >= 2 && !ignoredWords.has(word));
+  return [...new Set(words.map(word => (word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word)))];
+}
+
 @Component({
   standalone: true,
   imports: [RouterLink],
@@ -28,21 +40,25 @@ export function parseStepDuration(text: string): number | null {
         <header class="cook-top">
           <a class="button secondary" [routerLink]="['/recipes', item.id]">✕ {{ i18n.t('cook.exit') }}</a>
           <strong class="cook-title">{{ item.name }}</strong>
-          <button type="button" class="button secondary" [attr.aria-expanded]="showIngredients()" (click)="showIngredients.set(!showIngredients())">
-            {{ i18n.t('cook.ingredients') }}
-          </button>
+          <span class="cook-top-spacer"></span>
         </header>
 
-        @if (showIngredients()) {
-          <section class="cook-ingredients" aria-live="polite">
-            <ul>
-              @for (ingredient of item.ingredients; track $index) {
-                <li><strong>{{ amount(ingredient, item.servings) }}</strong> {{ ingredient.name }}</li>
-              }
-            </ul>
-          </section>
-        }
+        <div class="cook-body">
+        <aside class="cook-ingredients" [attr.aria-label]="i18n.t('cook.ingredients')">
+          <h2 class="eyebrow">{{ i18n.t('cook.ingredients') }}</h2>
+          <ul>
+            @for (ingredient of item.ingredients; track $index) {
+              <li>
+                <button type="button" class="cook-ingredient" [class.used]="isUsed($index)" [attr.aria-pressed]="isUsed($index)" (click)="toggleUsed($index)">
+                  <span class="cook-check" aria-hidden="true">{{ isUsed($index) ? '✓' : '' }}</span>
+                  <span><strong>{{ amount(ingredient, item.servings) }}</strong> {{ ingredient.name }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        </aside>
 
+        <div class="cook-main">
         @if (!item.steps.length) {
           <p class="state-card">{{ i18n.t('cook.noSteps') }}</p>
         } @else if (finished()) {
@@ -76,6 +92,8 @@ export function parseStepDuration(text: string): number | null {
             </button>
           </nav>
         }
+        </div>
+        </div>
       </div>
     } @else if (error()) {
       <div class="state-card" role="alert">{{ i18n.t('detail.notFoundShort') }}</div>
@@ -84,15 +102,26 @@ export function parseStepDuration(text: string): number | null {
     }
   `,
   styles: `
-    .cook-screen { display: grid; gap: 1.25rem; max-width: 52rem; margin: 0 auto; }
+    .cook-screen { display: grid; gap: 1.25rem; max-width: 70rem; margin: 0 auto; }
     .cook-top { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; }
+    .cook-top-spacer { width: 6rem; }
     .cook-title { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cook-ingredients { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; }
-    .cook-ingredients ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
-    .cook-progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+    .cook-body { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); }
+    .cook-main { display: grid; gap: 1.25rem; min-width: 0; align-content: start; }
+    .cook-ingredients { background: var(--paper); border: 1px solid var(--line); border-radius: 0; padding: 1rem 1.25rem; order: 2; align-self: start; }
+    .cook-ingredients h2 { margin: 0 0 0.75rem; }
+    .cook-ingredients ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.1rem; }
+    .cook-ingredient { display: flex; gap: 0.7rem; align-items: baseline; width: 100%; text-align: left; background: none; border: 0; padding: 0.35rem 0; color: inherit; font: inherit; cursor: pointer; text-transform: none; letter-spacing: normal; }
+    .cook-check { flex: none; width: 1.05rem; height: 1.05rem; border: 1px solid var(--green); display: inline-grid; place-items: center; font-size: 0.75rem; line-height: 1; color: var(--green); transform: translateY(0.15rem); }
+    .cook-ingredient.used { opacity: 0.5; text-decoration: line-through; }
+    @media (min-width: 56rem) {
+      .cook-body { grid-template-columns: 19rem minmax(0, 1fr); }
+      .cook-ingredients { order: 0; position: sticky; top: 1rem; }
+    }
+    .cook-progress { height: 2px; background: var(--line); overflow: hidden; }
     .cook-progress-bar { height: 100%; background: var(--green); transition: width 0.2s; }
-    .cook-step { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 2rem 1.5rem; min-height: 40vh; display: grid; align-content: center; gap: 1.25rem; }
-    .cook-text { font-size: clamp(1.4rem, 4vw, 2.2rem); line-height: 1.4; margin: 0; }
+    .cook-step { background: var(--paper); border: 1px solid var(--line); border-radius: 0; padding: 2.5rem 1.5rem; min-height: 40vh; display: grid; align-content: center; gap: 1.25rem; }
+    .cook-text { font-family: var(--serif); font-size: clamp(1.6rem, 4.5vw, 2.5rem); line-height: 1.4; margin: 0; }
     .cook-timer { display: flex; gap: 1rem; align-items: center; }
     .cook-timer-value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--green); }
     .cook-timer-value.done { color: #c0392b; animation: blink 1s steps(2) infinite; }
@@ -111,7 +140,8 @@ export class CookModeComponent implements OnDestroy {
   readonly recipe = signal<Recipe | null>(null);
   readonly error = signal(false);
   readonly index = signal(0);
-  readonly showIngredients = signal(false);
+  // Ingredient indexes the user flipped manually, overriding the automatic state.
+  private readonly overrides = signal<ReadonlySet<number>>(new Set());
   readonly timerEnd = signal<number | null>(null);
   readonly now = signal(Date.now());
   private readonly servings = signal<number | null>(null);
@@ -122,6 +152,18 @@ export class CookModeComponent implements OnDestroy {
   readonly finished = computed(() => {
     const item = this.recipe();
     return !!item && item.steps.length > 0 && this.index() >= item.steps.length;
+  });
+  // For each ingredient, the first step that mentions it (or -1); it counts as used once that step is passed.
+  private readonly firstStep = computed(() => {
+    const item = this.recipe();
+    if (!item) return [];
+    const steps = item.steps.map(step => step.toLocaleLowerCase());
+    return item.ingredients.map(ingredient => {
+      const words = ingredientKeywords(ingredient.name);
+      // Match at word starts so "æg" finds "æggene" but not the middle of other words.
+      const patterns = words.map(word => new RegExp(`(?<![\\p{L}])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'u'));
+      return steps.findIndex(step => patterns.some(pattern => pattern.test(step)));
+    });
   });
   readonly stepSeconds = computed(() => {
     const step = this.recipe()?.steps[this.index()];
@@ -172,6 +214,20 @@ export class CookModeComponent implements OnDestroy {
     const item = this.recipe();
     if (!item) return;
     this.index.update(value => Math.min(item.steps.length, Math.max(0, value + delta)));
+  }
+
+  isUsed(ingredientIndex: number): boolean {
+    const step = this.firstStep()[ingredientIndex];
+    const auto = step !== undefined && step >= 0 && this.index() > step;
+    return this.overrides().has(ingredientIndex) ? !auto : auto;
+  }
+
+  toggleUsed(ingredientIndex: number): void {
+    this.overrides.update(current => {
+      const next = new Set(current);
+      if (!next.delete(ingredientIndex)) next.add(ingredientIndex);
+      return next;
+    });
   }
 
   touchStart(event: TouchEvent): void {

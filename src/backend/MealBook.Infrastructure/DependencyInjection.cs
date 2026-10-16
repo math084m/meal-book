@@ -28,7 +28,18 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddScoped<IRecipeRepository, RecipeRepository>();
-        services.AddSingleton<IImageStorage, MealBook.Infrastructure.Storage.S3ImageStorage>();
+        services.AddSingleton<IImageStorage>(_ =>
+        {
+            var s3 = new MealBook.Infrastructure.Storage.S3ImageStorage(configuration);
+            var localPath = configuration["ImageStorage:LocalPath"];
+            if (s3.IsConfigured || string.IsNullOrWhiteSpace(localPath))
+            {
+                return s3;
+            }
+
+            s3.Dispose();
+            return new MealBook.Infrastructure.Storage.FileSystemImageStorage(localPath);
+        });
         services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<MealBook.Application.Planning.IMealPlanRepository, MealPlanRepository>();
         services.AddScoped<MealBook.Application.Favorites.IFavoriteRepository, FavoriteRepository>();

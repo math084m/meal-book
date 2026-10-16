@@ -12,7 +12,7 @@
 }
 
 .topbar {
-  min-height: 82px;
+  min-height: 92px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -23,32 +23,38 @@
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.8rem;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
   text-decoration: none;
+  text-transform: uppercase;
 }
 
 .brand-mark {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  color: var(--button-ink);
-  background: var(--green);
-  font-family: var(--sans);
-  font-size: 1rem;
+  border: 1px solid var(--green);
+  border-radius: 0;
+  color: var(--green);
+  background: transparent;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  letter-spacing: 0;
 }
 
 nav {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: 1.6rem;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 nav a {
@@ -66,8 +72,8 @@ nav a.active {
 }
 
 .nav-signup {
-  padding: 0.55rem 0.85rem;
-  border-radius: 6px;
+  padding: 0.6rem 1.1rem;
+  border-radius: 0;
   color: var(--button-ink) !important;
   background: var(--green);
 }
@@ -93,11 +99,11 @@ nav a.active {
   width: 32px;
   height: 32px;
   justify-content: center;
-  border: 1px solid var(--line);
+  border: 1px solid var(--green);
   border-radius: 50%;
-  color: var(--ink);
-  background: var(--paper);
-  font-weight: 650;
+  color: var(--green);
+  background: transparent;
+  font-weight: 500;
 }
 
 .menu-panel {
@@ -105,15 +111,16 @@ nav a.active {
   z-index: 40;
   top: calc(100% + 0.6rem);
   left: 0;
-  min-width: 200px;
+  min-width: 210px;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  padding: 0.4rem;
+  padding: 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--paper);
-  box-shadow: 0 10px 28px rgb(0 0 0 / 18%);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 14%);
+  letter-spacing: 0.08em;
 }
 
 .menu-panel.right {
@@ -126,10 +133,11 @@ nav a.active {
   display: block;
   padding: 0.5rem 0.65rem;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   color: var(--ink);
   background: none;
   font: inherit;
+  font-size: 0.78rem;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -174,7 +182,7 @@ nav a.active {
   min-height: 0;
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   color: var(--ink);
   background: var(--input-bg);
   font: inherit;

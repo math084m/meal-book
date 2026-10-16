@@ -25,6 +25,9 @@ services:
       Admin__Password: ${MEALBOOK_ADMIN_PASSWORD:-}
       RecipeImport__ApiKey: ${MEALBOOK_RECIPE_IMPORT_API_KEY:-}
       DeepL__ApiKey: ${MEALBOOK_DEEPL_API_KEY:-}
+      ImageStorage__LocalPath: /app/images
+    volumes:
+      - mealbook-images:/app/images
     ports:
       - "5080:8080"
     depends_on:
@@ -46,3 +49,4 @@ services:
 
 volumes:
   mealbook-postgres:
+  mealbook-images:
