@@ -10,22 +10,47 @@
         <a routerLink="/plan" routerLinkActive="active">{{ i18n.t('nav.plan') }}@if (plan.count()) { <span class="nav-badge">{{ plan.count() }}</span> }</a>
         <a routerLink="/history" routerLinkActive="active">{{ i18n.t('nav.history') }}</a>
         @if (auth.currentUser()?.isAdmin) {
-          <a routerLink="/admin/recipes/drafts">{{ i18n.t('nav.drafts') }}</a>
-          <a routerLink="/admin/recipes/new">{{ i18n.t('nav.add') }}</a>
-          <a routerLink="/admin/ingredients">{{ i18n.t('nav.ingredients') }}</a>
+          <div class="menu">
+            <button class="menu-trigger" type="button" aria-haspopup="menu" [attr.aria-expanded]="openMenu() === 'admin'" (click)="toggleMenu('admin')">{{ i18n.t('nav.admin') }} <span aria-hidden="true">▾</span></button>
+            @if (openMenu() === 'admin') {
+              <div class="menu-panel" role="menu">
+                <a role="menuitem" routerLink="/admin/recipes/new">{{ i18n.t('nav.add') }}</a>
+                <a role="menuitem" routerLink="/admin/recipes/drafts">{{ i18n.t('nav.drafts') }}</a>
+                <a role="menuitem" routerLink="/admin/ingredients">{{ i18n.t('nav.ingredients') }}</a>
+              </div>
+            }
+          </div>
         }
-        <span class="nav-email">{{ auth.currentUser()?.email }}</span>
-        <button class="text-button" type="button" (click)="auth.logout()">{{ i18n.t('nav.signOut') }}</button>
       } @else {
         <a routerLink="/login">{{ i18n.t('nav.signIn') }}</a>
         <a class="nav-signup" routerLink="/register">{{ i18n.t('nav.join') }}</a>
       }
-      <select class="lang-switch" [attr.aria-label]="i18n.t('lang.aria')" [value]="i18n.lang()" (change)="setLanguage($event)">
-        @for (item of languages; track item.code) {
-          <option [value]="item.code" [selected]="item.code === i18n.lang()">{{ item.label }}</option>
+
+      <div class="menu">
+        <button class="menu-trigger avatar" type="button" aria-haspopup="menu" [attr.aria-expanded]="openMenu() === 'account'" [attr.aria-label]="i18n.t('nav.account')" [title]="auth.currentUser()?.email ?? i18n.t('nav.account')" (click)="toggleMenu('account')">
+          @if (auth.currentUser()) { {{ initial() }} } @else { ⚙ }
+        </button>
+        @if (openMenu() === 'account') {
+          <div class="menu-panel right" role="menu">
+            @if (auth.currentUser()) {
+              <p class="menu-email">{{ auth.currentUser()?.email }}</p>
+            }
+            <label class="menu-field">{{ i18n.t('lang.aria') }}
+              <select class="lang-switch" [value]="i18n.lang()" (change)="setLanguage($event)">
+                @for (item of languages; track item.code) {
+                  <option [value]="item.code" [selected]="item.code === i18n.lang()">{{ item.label }}</option>
+                }
+              </select>
+            </label>
+            <button class="menu-item" type="button" role="menuitem" (click)="themeService.toggle()">
+              {{ themeService.theme() === 'dark' ? '☀' : '☾' }} {{ i18n.t(themeService.theme() === 'dark' ? 'theme.light' : 'theme.dark') }}
+            </button>
+            @if (auth.currentUser()) {
+              <button class="menu-item" type="button" role="menuitem" (click)="signOut()">{{ i18n.t('nav.signOut') }}</button>
+            }
+          </div>
         }
-      </select>
-      <button class="theme-toggle" type="button" (click)="themeService.toggle()" [attr.aria-label]="i18n.t(themeService.theme() === 'dark' ? 'theme.light' : 'theme.dark')" [title]="i18n.t(themeService.theme() === 'dark' ? 'theme.light' : 'theme.dark')">{{ themeService.theme() === 'dark' ? '☀' : '☾' }}</button>
+      </div>
     </nav>
   </header>
 
