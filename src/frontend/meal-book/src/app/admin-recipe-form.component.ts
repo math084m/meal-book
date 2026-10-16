@@ -3,10 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { RecipeApiService, RecipeIngredient, RecipeWrite } from './recipe-api.service';
 import { I18nService, TranslationKey, languages } from './i18n.service';
+import { CatalogService } from './catalog.service';
+import { SelectFieldComponent } from './select-field.component';
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, SelectFieldComponent],
   template: `
     <a class="back-link" routerLink="/recipes">{{ i18n.t('common.backToRecipes') }}</a>
     <section class="page-heading">
@@ -29,15 +31,15 @@ import { I18nService, TranslationKey, languages } from './i18n.service';
           <label>{{ i18n.t('form.servings') }} <input name="servings" type="number" min="1" max="100" [(ngModel)]="model.servings" required /></label>
           <label>{{ i18n.t('form.prep') }} <input name="prepTime" type="number" min="0" [(ngModel)]="model.prepTimeMinutes" /></label>
           <label>{{ i18n.t('form.cook') }} <input name="cookTime" type="number" min="0" [(ngModel)]="model.cookTimeMinutes" /></label>
-          <label>{{ i18n.t('form.mealType') }} <input name="mealType" [(ngModel)]="model.mealType" [placeholder]="i18n.t('list.mealType.placeholder')" /></label>
-          <label>{{ i18n.t('form.course') }} <input name="course" [(ngModel)]="model.course" [placeholder]="i18n.t('list.course.placeholder')" /></label>
-          <label>{{ i18n.t('form.method') }} <input name="method" [(ngModel)]="model.cookingMethod" [placeholder]="i18n.t('list.method.placeholder')" /></label>
-          <label>{{ i18n.t('form.cuisine') }} <input name="cuisine" [(ngModel)]="model.cuisine" [placeholder]="i18n.t('list.cuisine.placeholder')" /></label>
+          <div class="field"><span class="field-label">{{ i18n.t('form.mealType') }}</span><app-select-field [options]="catalog.options('mealType')" [(value)]="model.mealTypes" [ariaLabel]="i18n.t('form.mealType')" /></div>
+          <div class="field"><span class="field-label">{{ i18n.t('form.course') }}</span><app-select-field [options]="catalog.options('course')" [(value)]="model.courses" [ariaLabel]="i18n.t('form.course')" /></div>
+          <div class="field"><span class="field-label">{{ i18n.t('form.method') }}</span><app-select-field [options]="catalog.options('cookingMethod')" [(value)]="model.cookingMethods" [ariaLabel]="i18n.t('form.method')" /></div>
+          <div class="field"><span class="field-label">{{ i18n.t('form.cuisine') }}</span><app-select-field [options]="catalog.options('cuisine')" [searchable]="true" [(value)]="model.cuisines" [ariaLabel]="i18n.t('form.cuisine')" /></div>
           <label>{{ i18n.t('form.calories') }} <input name="calories" type="number" min="0" [(ngModel)]="model.caloriesPerServing" /></label>
           <label>{{ i18n.t('form.protein') }} <input name="protein" type="number" min="0" [(ngModel)]="model.proteinGramsPerServing" /></label>
           <label>{{ i18n.t('form.carbs') }} <input name="carbs" type="number" min="0" [(ngModel)]="model.carbohydratesGramsPerServing" /></label>
           <label>{{ i18n.t('form.fat') }} <input name="fat" type="number" min="0" [(ngModel)]="model.fatGramsPerServing" /></label>
-          <label class="wide">{{ i18n.t('form.tags') }} <input name="tags" [(ngModel)]="tagText" [placeholder]="i18n.t('form.tags.placeholder')" /></label>
+          <div class="field wide"><span class="field-label">{{ i18n.t('form.tags') }}</span><app-select-field [options]="catalog.options('tag')" [searchable]="true" [(value)]="model.tags" [ariaLabel]="i18n.t('form.tags')" /></div>
           <label class="wide">{{ i18n.t('form.source') }} <input name="sourceUrl" type="url" [(ngModel)]="model.sourceUrl" maxlength="2048" placeholder="https://example.com/recipe" /></label>
           <label class="publish-toggle">
             <input name="isPublished" type="checkbox" [(ngModel)]="model.isPublished" />
@@ -59,7 +61,12 @@ import { I18nService, TranslationKey, languages } from './i18n.service';
             </div>
             @for (ingredient of section.ingredients; track $index) {
               <div class="ingredient-editor">
-                <label>{{ i18n.t('form.ingredient') }} <input [name]="'ingredientName' + ingredientIndex(section, ingredient)" [(ngModel)]="ingredient.name" required /></label>
+                <div class="field"><span class="field-label">{{ i18n.t('form.ingredient') }}</span>
+                  <app-select-field [options]="catalog.ingredientOptions()" [searchable]="true" [multiple]="false"
+                    [placeholder]="i18n.t('form.ingredient.pick')" [ariaLabel]="i18n.t('form.ingredient')"
+                    [value]="ingredient.ingredientId ? [ingredient.ingredientId] : []"
+                    (valueChange)="setIngredient(ingredient, $event[0])" />
+                </div>
                 <label>{{ i18n.t('form.quantity') }} <input [name]="'ingredientQty' + ingredientIndex(section, ingredient)" type="number" min="0.001" step="0.001" [(ngModel)]="ingredient.quantity" required /></label>
                 <div class="ingredient-unit">
                   <label>{{ i18n.t('form.unit') }}
@@ -103,18 +110,21 @@ import { I18nService, TranslationKey, languages } from './i18n.service';
         }
       </section>
       @if (error()) { <p class="error-message" role="alert">{{ i18n.t(error()!) }}</p> }
+      <p class="field-hint">{{ i18n.t('form.ingredient.missing') }}</p>
       <div class="form-actions">
         <a class="button secondary" routerLink="/recipes">{{ i18n.t('common.cancel') }}</a>
         <button class="button" type="submit" [disabled]="saving()">{{ saving() ? i18n.t('form.saving') : i18n.t('form.save') }}</button>
       </div>
     </form>
-  `
+  `,
+  styles: `.field { display: flex; flex-direction: column; gap: 0.4rem; } .field-label { color: var(--label); font-size: 0.84rem; font-weight: 650; }`
 })
 export class AdminRecipeFormComponent implements OnInit {
   private readonly api = inject(RecipeApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly i18n = inject(I18nService);
+  readonly catalog = inject(CatalogService);
   readonly languages = languages;
   readonly error = signal<TranslationKey | null>(null);
   readonly saving = signal(false);
@@ -122,7 +132,6 @@ export class AdminRecipeFormComponent implements OnInit {
   readonly units = ['g', 'kg', 'mg', 'ml', 'cl', 'dl', 'l', 'tsp', 'tbsp', 'piece', 'clove', 'can', 'package', 'pinch', 'handful', 'slice', 'bunch', 'cup'];
   readonly otherUnit = '__other__';
   ingredientSections: IngredientSection[] = [{ name: '', ingredients: [this.newIngredient()] }];
-  tagText = '';
   model: RecipeWrite = {
     language: this.i18n.lang(),
     name: '',
@@ -130,10 +139,10 @@ export class AdminRecipeFormComponent implements OnInit {
     servings: 4,
     prepTimeMinutes: 0,
     cookTimeMinutes: 0,
-    mealType: '',
-    course: '',
-    cookingMethod: '',
-    cuisine: '',
+    mealTypes: [],
+    courses: [],
+    cookingMethods: [],
+    cuisines: [],
     caloriesPerServing: null,
     proteinGramsPerServing: null,
     carbohydratesGramsPerServing: null,
@@ -147,6 +156,7 @@ export class AdminRecipeFormComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.catalog.load();
     if (!this.recipeId) return;
     this.api.getRecipe(this.recipeId, true).subscribe({
       next: recipe => {
@@ -169,22 +179,21 @@ export class AdminRecipeFormComponent implements OnInit {
           servings: recipe.servings,
           prepTimeMinutes: recipe.prepTimeMinutes,
           cookTimeMinutes: recipe.cookTimeMinutes,
-          mealType: recipe.mealType,
-          course: recipe.course,
-          cookingMethod: recipe.cookingMethod,
-          cuisine: recipe.cuisine,
+          mealTypes: [...recipe.mealTypes],
+          courses: [...recipe.courses],
+          cookingMethods: [...recipe.cookingMethods],
+          cuisines: [...recipe.cuisines],
           caloriesPerServing: recipe.caloriesPerServing ?? null,
           proteinGramsPerServing: recipe.proteinGramsPerServing ?? null,
           carbohydratesGramsPerServing: recipe.carbohydratesGramsPerServing ?? null,
           fatGramsPerServing: recipe.fatGramsPerServing ?? null,
           isPublished: recipe.isPublished,
           sourceUrl: recipe.sourceUrl ?? '',
-          tags: recipe.tags,
+          tags: [...recipe.tags],
           ingredients: recipe.ingredients.map(item => ({ ...item })),
           steps: [...recipe.steps],
           equipment: [...recipe.equipment]
         };
-        this.tagText = recipe.tags.join(', ');
       },
       error: () => this.error.set('form.loadFailed')
     });
@@ -214,7 +223,12 @@ export class AdminRecipeFormComponent implements OnInit {
   }
 
   private newIngredient(): RecipeIngredient {
-    return { name: '', quantity: 1, unit: '', section: '', notes: '' };
+    return { ingredientId: null, name: '', quantity: 1, unit: '', section: '', notes: '' };
+  }
+
+  setIngredient(ingredient: RecipeIngredient, id: string | undefined): void {
+    ingredient.ingredientId = id ?? null;
+    ingredient.name = this.catalog.ingredientOptions().find(option => option.value === id)?.label ?? '';
   }
 
   unitChoice(unit: string): string {
@@ -238,11 +252,14 @@ export class AdminRecipeFormComponent implements OnInit {
 
   save(): void {
     this.error.set(null);
+    if (this.ingredientSections.some(section => section.ingredients.some(item => !item.ingredientId))) {
+      this.error.set('form.ingredient.required');
+      return;
+    }
     this.model.ingredients = this.ingredientSections.flatMap(section =>
       section.ingredients.map(ingredient => ({ ...ingredient, section: section.name.trim() }))
     );
     this.saving.set(true);
-    this.model.tags = this.tagText.split(',').map(tag => tag.trim()).filter(Boolean);
     const request = this.recipeId
       ? this.api.updateRecipe(this.recipeId, this.model)
       : this.api.createRecipe(this.model);

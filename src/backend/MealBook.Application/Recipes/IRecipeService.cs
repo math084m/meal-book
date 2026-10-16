@@ -2,6 +2,11 @@ namespace MealBook.Application.Recipes;
 
 public interface IRecipeService
 {
+    Task<IReadOnlyList<RecipeSuggestionResponse>> GetSuggestionsAsync(
+        string? query,
+        string? language,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<RecipeResponse>> GetAllAsync(
         RecipeSearchRequest search,
         CancellationToken cancellationToken);

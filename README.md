@@ -49,8 +49,12 @@ with `Ctrl+C`, or run `docker compose down`; the database volume is preserved.
 ## API
 
 - `GET /api/health` checks that the service is running.
-- `GET /api/recipes` lists recipes and supports search, ingredients, tags, meal
-  type, course, cooking method, cuisine, time, calories, rating, and sort filters.
+- `GET /api/recipes` lists recipes and supports search, ingredients (all of),
+  tags, meal types, courses, cooking methods, cuisines (repeat a key for several
+  values), `minTotalMinutes`/`maxTotalMinutes`, calories, rating, and sort filters.
+- `GET /api/recipes/suggestions?q=` returns up to 8 name suggestions.
+- `GET /api/terms` and `GET /api/ingredients` list the premade filter terms and
+  the ingredient catalog; admins manage ingredients on the **Ingredients** page.
 - `GET /api/recipes/{id}` reads one recipe.
 - `GET /api/recipes/dashboard` provides recent additions, recently cooked, and
   most-cooked recipes.
@@ -149,9 +153,11 @@ fly secrets set RecipeImport__ApiKey="replace-with-a-long-random-secret-value"
 
 Send `POST /api/recipe-imports` with `Content-Type: application/json` and
 `X-Recipe-Import-Key`. Payload uses recipe write fields (`name`, `description`,
-`servings`, `prepTimeMinutes`, `cookTimeMinutes`, `mealType`, `course`,
-`cookingMethod`, `cuisine`, nutrition fields, `tags`, `ingredients`, `steps`,
-`equipment`) plus `sourceUrl` and `language` (`en`/`da`, default `en`). Example:
+`servings`, `prepTimeMinutes`, `cookTimeMinutes`, `mealTypes`, `courses`,
+`cookingMethods`, `cuisines`, nutrition fields, `tags`, `ingredients`, `steps`,
+`equipment`) plus `sourceUrl` and `language` (`en`/`da`, default `en`). Term
+fields are arrays of slugs from `GET /api/terms`; ingredients reference catalog
+ids from `GET /api/ingredients`. Example:
 
 ```json
 {
@@ -161,13 +167,13 @@ Send `POST /api/recipe-imports` with `Content-Type: application/json` and
   "servings": 4,
   "prepTimeMinutes": 15,
   "cookTimeMinutes": 30,
-  "mealType": "Dinner",
-  "course": "Main",
-  "cookingMethod": "Oven",
-  "cuisine": "Example",
-  "tags": ["weeknight"],
+  "mealTypes": ["dinner"],
+  "courses": ["main"],
+  "cookingMethods": ["baking"],
+  "cuisines": ["italian"],
+  "tags": ["easy"],
   "ingredients": [
-    { "name": "Tomatoes", "quantity": 2, "unit": "piece" }
+    { "ingredientId": "<id from /api/ingredients>", "quantity": 2, "unit": "piece", "section": "Ingredients" }
   ],
   "steps": ["Prepare ingredients.", "Cook until done."],
   "equipment": ["Baking dish"]

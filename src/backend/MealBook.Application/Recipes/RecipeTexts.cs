@@ -9,13 +9,13 @@ internal sealed record TranslatedIngredient(string Name, string Unit, string? Se
 internal sealed record TranslatedContent(
     string Name,
     string? Description,
-    List<string> Tags,
     List<TranslatedIngredient> Ingredients,
     List<string> Steps,
     List<string> Equipment);
 
 // Flattens every translatable text of a recipe in a fixed order so a batch of
 // translated strings can be mapped back onto the same structure.
+// Terms and catalog ingredient names are localised from their tables, not translated.
 internal static class RecipeTexts
 {
     private const int MinUnitLengthToTranslate = 3;
@@ -23,10 +23,9 @@ internal static class RecipeTexts
     public static List<string?> Extract(Recipe recipe)
     {
         var texts = new List<string?> { recipe.Name, recipe.Description };
-        texts.AddRange(recipe.Tags.OrderBy(item => item.Position).Select(item => item.Name));
         foreach (var ingredient in recipe.Ingredients.OrderBy(item => item.Position))
         {
-            texts.Add(ingredient.Name);
+            texts.Add(ingredient.IngredientId is null ? ingredient.Name : null);
             texts.Add(ingredient.Unit.Length >= MinUnitLengthToTranslate ? ingredient.Unit : null);
             texts.Add(ingredient.Section);
             texts.Add(ingredient.Notes);
@@ -50,9 +49,6 @@ internal static class RecipeTexts
 
         var name = Next() ?? recipe.Name;
         var description = Next();
-        var tags = recipe.Tags.OrderBy(item => item.Position)
-            .Select(item => Next() ?? item.Name)
-            .ToList();
         var ingredients = recipe.Ingredients.OrderBy(item => item.Position)
             .Select(item => new TranslatedIngredient(
                 Next() ?? item.Name,
@@ -66,6 +62,6 @@ internal static class RecipeTexts
         var equipment = recipe.Equipment.OrderBy(item => item.Position)
             .Select(item => Next() ?? item.Name)
             .ToList();
-        return new TranslatedContent(name, description, tags, ingredients, steps, equipment);
+        return new TranslatedContent(name, description, ingredients, steps, equipment);
     }
 }

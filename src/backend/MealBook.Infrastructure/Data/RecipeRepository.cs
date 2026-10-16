@@ -14,10 +14,14 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         var term = search.Search?.Trim();
         if (!string.IsNullOrEmpty(term))
         {
-            var pattern = $"%{term}%";
+            var pattern = $"%{term.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
             query = query.Where(recipe =>
                 EF.Functions.ILike(recipe.Name, pattern)
-                || (recipe.Description != null && EF.Functions.ILike(recipe.Description, pattern)));
+                || (recipe.Description != null && EF.Functions.ILike(recipe.Description, pattern))
+                || recipe.Ingredients.Any(item => db.Set<Ingredient>().Any(ingredient =>
+                    ingredient.Id == item.IngredientId
+                    && (EF.Functions.ILike(ingredient.NameEn, pattern)
+                        || EF.Functions.ILike(ingredient.NameDa, pattern)))));
         }
 
         if (search.MaxTotalMinutes is { } maxMinutes)
@@ -25,44 +29,20 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
             query = query.Where(recipe => recipe.PrepTimeMinutes + recipe.CookTimeMinutes <= maxMinutes);
         }
 
-        if (!string.IsNullOrWhiteSpace(search.MealType))
+        if (search.MinTotalMinutes is { } minMinutes)
         {
-            query = query.Where(recipe => recipe.MealType == search.MealType);
+            query = query.Where(recipe => recipe.PrepTimeMinutes + recipe.CookTimeMinutes >= minMinutes);
         }
 
-        if (!string.IsNullOrWhiteSpace(search.Course))
-        {
-            query = query.Where(recipe => recipe.Course == search.Course);
-        }
+        query = FilterByTerms(query, TermKinds.MealType, search.MealTypes);
+        query = FilterByTerms(query, TermKinds.Course, search.Courses);
+        query = FilterByTerms(query, TermKinds.CookingMethod, search.CookingMethods);
+        query = FilterByTerms(query, TermKinds.Cuisine, search.Cuisines);
+        query = FilterByTerms(query, TermKinds.Tag, search.Tags);
 
-        if (!string.IsNullOrWhiteSpace(search.CookingMethod))
+        foreach (var ingredientId in search.Ingredients.Distinct())
         {
-            query = query.Where(recipe => recipe.CookingMethod == search.CookingMethod);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search.Cuisine))
-        {
-            query = query.Where(recipe => recipe.Cuisine == search.Cuisine);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search.Ingredient))
-        {
-            var ingredients = search.Ingredient
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var ingredient in ingredients)
-            {
-                query = query.Where(recipe =>
-                    recipe.Ingredients.Any(item => EF.Functions.ILike(item.Name, $"%{ingredient}%")));
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(search.Tags))
-        {
-            var tags = search.Tags
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(tag => tag.ToLowerInvariant())
-                .ToArray();
-            query = query.Where(recipe => recipe.Tags.Any(tag => tags.Contains(tag.Name.ToLower())));
+            query = query.Where(recipe => recipe.Ingredients.Any(item => item.IngredientId == ingredientId));
         }
 
         if (search.MaxCalories is { } maxCalories)
@@ -127,7 +107,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
             .Include(item => item.Ingredients)
             .Include(item => item.Steps)
             .Include(item => item.Equipment)
-            .Include(item => item.Tags)
+            .Include(item => item.Terms)
             .SingleOrDefaultAsync(item => item.Id == recipe.Id, cancellationToken);
         if (existing is null)
         {
@@ -138,7 +118,22 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         ReplaceChildren(existing.Ingredients, recipe.Ingredients);
         ReplaceChildren(existing.Steps, recipe.Steps);
         ReplaceChildren(existing.Equipment, recipe.Equipment);
-        ReplaceChildren(existing.Tags, recipe.Tags);
+
+        // Terms have natural keys, so diff them instead of replacing to avoid key conflicts.
+        var wanted = recipe.Terms.Select(term => (term.Kind, term.Slug)).ToHashSet();
+        foreach (var term in existing.Terms.Where(term => !wanted.Contains((term.Kind, term.Slug))).ToList())
+        {
+            existing.Terms.Remove(term);
+            db.Remove(term);
+        }
+
+        var current = existing.Terms.Select(term => (term.Kind, term.Slug)).ToHashSet();
+        foreach (var term in recipe.Terms.Where(term => !current.Contains((term.Kind, term.Slug))))
+        {
+            db.Entry(term).State = EntityState.Added;
+            existing.Terms.Add(term);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -307,6 +302,17 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         }).ToList();
     }
 
+    private static IQueryable<Recipe> FilterByTerms(
+        IQueryable<Recipe> query,
+        string kind,
+        IReadOnlyCollection<string> slugs)
+    {
+        var values = slugs.Where(slug => !string.IsNullOrWhiteSpace(slug)).Distinct().ToArray();
+        return values.Length == 0
+            ? query
+            : query.Where(recipe => recipe.Terms.Any(term => term.Kind == kind && values.Contains(term.Slug)));
+    }
+
     private IQueryable<Recipe> CreateRecipeQuery() =>
         db.Recipes
             .AsNoTracking()
@@ -314,7 +320,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
             .Include(recipe => recipe.Ingredients)
             .Include(recipe => recipe.Steps)
             .Include(recipe => recipe.Equipment)
-            .Include(recipe => recipe.Tags);
+            .Include(recipe => recipe.Terms);
 
     private void ReplaceChildren<T>(List<T> current, List<T> replacement)
         where T : class

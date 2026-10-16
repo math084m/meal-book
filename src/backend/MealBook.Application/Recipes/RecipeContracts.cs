@@ -5,7 +5,8 @@ public sealed record RecipeIngredientResponse(
     decimal Quantity,
     string Unit,
     string? Section = null,
-    string? Notes = null);
+    string? Notes = null,
+    Guid? IngredientId = null);
 
 public sealed record RecipeResponse(
     Guid Id,
@@ -14,10 +15,10 @@ public sealed record RecipeResponse(
     int Servings,
     int PrepTimeMinutes,
     int CookTimeMinutes,
-    string MealType,
-    string Course,
-    string CookingMethod,
-    string Cuisine,
+    IReadOnlyList<string> MealTypes,
+    IReadOnlyList<string> Courses,
+    IReadOnlyList<string> CookingMethods,
+    IReadOnlyList<string> Cuisines,
     int? CaloriesPerServing,
     int? ProteinGramsPerServing,
     int? CarbohydratesGramsPerServing,
@@ -62,17 +63,21 @@ public abstract class RecipeWriteRequest
     [System.ComponentModel.DataAnnotations.Range(0, 1440)]
     public int CookTimeMinutes { get; init; }
 
-    [System.ComponentModel.DataAnnotations.StringLength(80)]
-    public string MealType { get; init; } = string.Empty;
+    [StringItems(80)]
+    [System.ComponentModel.DataAnnotations.MaxLength(20)]
+    public List<string> MealTypes { get; init; } = [];
 
-    [System.ComponentModel.DataAnnotations.StringLength(80)]
-    public string Course { get; init; } = string.Empty;
+    [StringItems(80)]
+    [System.ComponentModel.DataAnnotations.MaxLength(20)]
+    public List<string> Courses { get; init; } = [];
 
-    [System.ComponentModel.DataAnnotations.StringLength(100)]
-    public string CookingMethod { get; init; } = string.Empty;
+    [StringItems(80)]
+    [System.ComponentModel.DataAnnotations.MaxLength(20)]
+    public List<string> CookingMethods { get; init; } = [];
 
-    [System.ComponentModel.DataAnnotations.StringLength(100)]
-    public string Cuisine { get; init; } = string.Empty;
+    [StringItems(80)]
+    [System.ComponentModel.DataAnnotations.MaxLength(20)]
+    public List<string> Cuisines { get; init; } = [];
 
     [System.ComponentModel.DataAnnotations.Range(0, 10000)]
     public int? CaloriesPerServing { get; init; }
@@ -128,8 +133,7 @@ public sealed class StringItemsAttribute(int maxItemLength) : System.ComponentMo
 public sealed class CreateRecipeIngredientRequest
 {
     [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.StringLength(200, MinimumLength = 1)]
-    public string Name { get; init; } = string.Empty;
+    public Guid? IngredientId { get; init; }
 
     [System.ComponentModel.DataAnnotations.Range(typeof(decimal), "0.001", "1000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true)]
     public decimal Quantity { get; init; }
@@ -148,16 +152,34 @@ public sealed class RecipeSearchRequest
 {
     public string? Search { get; init; }
     public int? MaxTotalMinutes { get; init; }
-    public string? MealType { get; init; }
-    public string? Course { get; init; }
-    public string? CookingMethod { get; init; }
-    public string? Cuisine { get; init; }
-    public string? Ingredient { get; init; }
-    public string? Tags { get; init; }
+    public int? MinTotalMinutes { get; init; }
+    public List<string> MealTypes { get; init; } = [];
+    public List<string> Courses { get; init; } = [];
+    public List<string> CookingMethods { get; init; } = [];
+    public List<string> Cuisines { get; init; } = [];
+    public List<Guid> Ingredients { get; init; } = [];
+    public List<string> Tags { get; init; } = [];
     public int? MaxCalories { get; init; }
     public double? MinRating { get; init; }
     public string Sort { get; init; } = "newest";
     public string? Lang { get; init; }
+}
+
+public sealed record RecipeSuggestionResponse(Guid Id, string Name);
+
+public sealed record TermResponse(string Kind, string Slug, string NameEn, string NameDa);
+
+public sealed record IngredientResponse(Guid Id, string NameEn, string NameDa);
+
+public sealed class IngredientWriteRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(200, MinimumLength = 1)]
+    public string NameEn { get; init; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(200, MinimumLength = 1)]
+    public string NameDa { get; init; } = string.Empty;
 }
 
 public sealed record RecipeCookedResponse(

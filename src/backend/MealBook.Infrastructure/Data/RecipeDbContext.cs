@@ -26,10 +26,6 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         recipe.HasKey(item => item.Id);
         recipe.Property(item => item.Name).HasMaxLength(200).IsRequired();
         recipe.Property(item => item.Description).HasMaxLength(2000);
-        recipe.Property(item => item.MealType).HasMaxLength(80).IsRequired();
-        recipe.Property(item => item.Course).HasMaxLength(80).IsRequired();
-        recipe.Property(item => item.CookingMethod).HasMaxLength(100).IsRequired();
-        recipe.Property(item => item.Cuisine).HasMaxLength(100).IsRequired();
         recipe.Property(item => item.IsPublished).IsRequired();
         recipe.Property(item => item.SourceUrl).HasMaxLength(2048);
         recipe.HasIndex(item => new { item.IsPublished, item.AddedAt });
@@ -46,7 +42,7 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .WithOne()
             .HasForeignKey(item => item.RecipeId)
             .OnDelete(DeleteBehavior.Cascade);
-        recipe.HasMany(item => item.Tags)
+        recipe.HasMany(item => item.Terms)
             .WithOne()
             .HasForeignKey(item => item.RecipeId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -72,6 +68,35 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         ingredient.Property(item => item.Section).HasColumnType("text");
         ingredient.Property(item => item.Notes).HasMaxLength(500);
         ingredient.Property(item => item.Quantity).HasPrecision(12, 3);
+        ingredient.HasOne<Ingredient>()
+            .WithMany()
+            .HasForeignKey(item => item.IngredientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var catalogIngredient = modelBuilder.Entity<Ingredient>();
+        catalogIngredient.ToTable("Ingredients");
+        catalogIngredient.HasKey(item => item.Id);
+        catalogIngredient.Property(item => item.NameEn).HasMaxLength(200).IsRequired();
+        catalogIngredient.Property(item => item.NameDa).HasMaxLength(200).IsRequired();
+
+        var term = modelBuilder.Entity<Term>();
+        term.ToTable("Terms");
+        term.HasKey(item => new { item.Kind, item.Slug });
+        term.Property(item => item.Kind).HasMaxLength(40);
+        term.Property(item => item.Slug).HasMaxLength(80);
+        term.Property(item => item.NameEn).HasMaxLength(120).IsRequired();
+        term.Property(item => item.NameDa).HasMaxLength(120).IsRequired();
+
+        var recipeTerm = modelBuilder.Entity<RecipeTerm>();
+        recipeTerm.ToTable("RecipeTerms");
+        recipeTerm.HasKey(item => new { item.RecipeId, item.Kind, item.Slug });
+        recipeTerm.Property(item => item.Kind).HasMaxLength(40);
+        recipeTerm.Property(item => item.Slug).HasMaxLength(80);
+        recipeTerm.HasOne<Term>()
+            .WithMany()
+            .HasForeignKey(item => new { item.Kind, item.Slug })
+            .OnDelete(DeleteBehavior.Restrict);
+        recipeTerm.HasIndex(item => new { item.Kind, item.Slug });
 
         var step = modelBuilder.Entity<RecipeStep>();
         step.ToTable("RecipeStepEntity");
@@ -83,13 +108,7 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         equipment.HasKey(item => item.Id);
         equipment.Property(item => item.Name).HasMaxLength(200).IsRequired();
 
-        var tag = modelBuilder.Entity<RecipeTag>();
-        tag.ToTable("RecipeTagEntity");
-        tag.HasKey(item => item.Id);
-        tag.Property(item => item.Name).HasMaxLength(80).IsRequired();
-        tag.HasIndex(item => new { item.RecipeId, item.Name }).IsUnique();
-
-        var cookLog = modelBuilder.Entity<RecipeCookLog>();
+        var cookLog =  modelBuilder.Entity<RecipeCookLog>();
         cookLog.ToTable("RecipeCookLog");
         cookLog.HasKey(item => item.Id);
         cookLog.Property(item => item.UserId).HasMaxLength(450).IsRequired();

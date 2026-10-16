@@ -8,6 +8,7 @@ namespace MealBook.Api.Controllers;
 
 [ApiController]
 [Route("api/recipe-imports")]
+[RecipeValidationFilter]
 public sealed class RecipeImportsController(
     IRecipeService recipes,
     IConfiguration configuration) : ControllerBase

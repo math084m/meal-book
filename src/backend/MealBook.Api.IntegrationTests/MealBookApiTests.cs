@@ -9,6 +9,115 @@ namespace MealBook.Api.IntegrationTests;
 public sealed class MealBookApiTests(MealBookApiFixture fixture)
     : IClassFixture<MealBookApiFixture>
 {
+    private readonly Guid tomatoId = LoadIngredientId(fixture, "Tomato");
+    private readonly Guid onionId = LoadIngredientId(fixture, "Onion");
+
+    private static Guid LoadIngredientId(MealBookApiFixture fixture, string nameEn)
+    {
+        using var client = fixture.Factory.CreateClient();
+        using var response = client.GetAsync("/api/ingredients").GetAwaiter().GetResult();
+        using var body = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+        return body.RootElement.EnumerateArray()
+            .First(item => item.GetProperty("nameEn").GetString() == nameEn)
+            .GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task Catalog_ListsTermsAndIngredients_AndRejectsUnknownReferences()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+
+        var terms = await ReadJsonAsync(await admin.GetAsync("/api/terms"));
+        Assert.Contains(terms.EnumerateArray(), term =>
+            term.GetProperty("kind").GetString() == "cuisine" && term.GetProperty("slug").GetString() == "danish");
+
+        using var anonymous = fixture.Factory.CreateClient();
+        using var denied = await anonymous.PostAsJsonAsync(
+            "/api/ingredients",
+            new { nameEn = "Nope", nameDa = "Nej" });
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        var name = $"Test ingredient {Guid.NewGuid():N}";
+        using var created = await admin.PostAsJsonAsync("/api/ingredients", new { nameEn = name, nameDa = "Testing" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var duplicate = await admin.PostAsJsonAsync("/api/ingredients", new { nameEn = name, nameDa = "Testing" });
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+        var id = (await ReadJsonAsync(created)).GetProperty("id").GetGuid();
+        using var renamed = await admin.PutAsJsonAsync($"/api/ingredients/{id}", new { nameEn = name, nameDa = "Testet" });
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        using var deleted = await admin.DeleteAsync($"/api/ingredients/{id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+
+        var unknownTerm = new
+        {
+            name = "Bad terms",
+            servings = 1,
+            mealTypes = new[] { "not-a-meal-type" },
+            ingredients = new[] { new { ingredientId = tomatoId, quantity = 1m, unit = "g", section = "A" } },
+            steps = new[] { "Do." }
+        };
+        using var badTerm = await admin.PostAsJsonAsync("/api/recipes", unknownTerm);
+        Assert.Equal(HttpStatusCode.BadRequest, badTerm.StatusCode);
+
+        var unknownIngredient = new
+        {
+            name = "Bad ingredient",
+            servings = 1,
+            ingredients = new[] { new { ingredientId = Guid.NewGuid(), quantity = 1m, unit = "g", section = "A" } },
+            steps = new[] { "Do." }
+        };
+        using var badIngredient = await admin.PostAsJsonAsync("/api/recipes", unknownIngredient);
+        Assert.Equal(HttpStatusCode.BadRequest, badIngredient.StatusCode);
+    }
+
+    [Fact]
+    public async Task Recipes_FilterByTermsIngredientsAndTime_AndSuggestByName()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var name = $"Filterable {Guid.NewGuid():N}";
+        using var create = await admin.PostAsJsonAsync("/api/recipes", new
+        {
+            name,
+            servings = 2,
+            prepTimeMinutes = 20,
+            cookTimeMinutes = 40,
+            mealTypes = new[] { "lunch" },
+            courses = new[] { "salad", "side" },
+            cookingMethods = new[] { "grilling" },
+            cuisines = new[] { "greek" },
+            tags = new[] { "vegan", "quick" },
+            ingredients = new[]
+            {
+                new { ingredientId = tomatoId, quantity = 1m, unit = "pieces", section = "Main" },
+                new { ingredientId = onionId, quantity = 1m, unit = "pieces", section = "Main" }
+            },
+            steps = new[] { "Mix." }
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        using var anonymous = fixture.Factory.CreateClient();
+        async Task<bool> Matches(string query) =>
+            (await anonymous.GetStringAsync($"/api/recipes?{query}")).Contains(name, StringComparison.Ordinal);
+
+        Assert.True(await Matches("mealTypes=lunch&mealTypes=dinner"));
+        Assert.True(await Matches("courses=side&cuisines=greek&tags=vegan&cookingMethods=grilling"));
+        Assert.False(await Matches("mealTypes=breakfast"));
+        Assert.False(await Matches("cuisines=greek&tags=keto"));
+        Assert.True(await Matches($"ingredients={tomatoId}&ingredients={onionId}"));
+        Assert.False(await Matches($"ingredients={tomatoId}&ingredients={Guid.NewGuid()}"));
+        Assert.True(await Matches("maxTotalMinutes=60"));
+        Assert.False(await Matches("maxTotalMinutes=30"));
+        Assert.False(await Matches("minTotalMinutes=240"));
+
+        var suggestions = await ReadJsonAsync(
+            await anonymous.GetAsync($"/api/recipes/suggestions?q={name[..18]}"));
+        Assert.Contains(suggestions.EnumerateArray(), item => item.GetProperty("name").GetString() == name);
+        var none = await ReadJsonAsync(await anonymous.GetAsync("/api/recipes/suggestions?q="));
+        Assert.Equal(0, none.GetArrayLength());
+    }
+
     [Fact]
     public async Task Startup_AppliesMigrations_AndHealthEndpointConnectsToDatabase()
     {
@@ -96,15 +205,15 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
             servings = 2,
             prepTimeMinutes = 10,
             cookTimeMinutes = 15,
-            mealType = "Dinner",
-            course = "Main",
-            cookingMethod = "Bake",
-            cuisine = "Test",
+            mealTypes = new[] { "dinner" },
+            courses = new[] { "main" },
+            cookingMethods = new[] { "baking" },
+            cuisines = new[] { "italian" },
             isPublished = false,
             tags = Array.Empty<string>(),
             ingredients = new[]
             {
-                new { name = "Tomato", quantity = 2m, unit = "pieces", section = "Sauce" }
+                new { ingredientId = tomatoId, quantity = 2m, unit = "pieces", section = "Sauce" }
             },
             steps = new[] { "Cook the sauce." },
             equipment = Array.Empty<string>()
@@ -229,7 +338,7 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         Assert.Equal("da", danish.GetProperty("displayLanguage").GetString());
         Assert.Equal("en", danish.GetProperty("language").GetString());
         var ingredient = danish.GetProperty("ingredients")[0];
-        Assert.Equal("[da] Tomato", ingredient.GetProperty("name").GetString());
+        Assert.Equal("Tomat", ingredient.GetProperty("name").GetString());
         Assert.Equal(2m, ingredient.GetProperty("quantity").GetDecimal());
         Assert.Equal("g", ingredient.GetProperty("unit").GetString());
         Assert.Equal("[da] Prepare ingredients.", danish.GetProperty("steps")[0].GetString());
@@ -304,7 +413,7 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         return client.PostAsJsonAsync("/api/recipe-imports", payload);
     }
 
-    private static object TranslatableRecipe(string name, string language) => new
+    private object TranslatableRecipe(string name, string language) => new
     {
         name,
         description = "Description text.",
@@ -312,40 +421,40 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         servings = 4,
         prepTimeMinutes = 10,
         cookTimeMinutes = 20,
-        mealType = "Dinner",
-        course = "Main",
-        cookingMethod = "Bake",
-        cuisine = "Test",
+        mealTypes = new[] { "dinner" },
+        courses = new[] { "main" },
+        cookingMethods = new[] { "baking" },
+        cuisines = new[] { "italian" },
         tags = new[] { "quick" },
         ingredients = new[]
         {
-            new { name = "Tomato", quantity = 2m, unit = "g", section = "Sauce" }
+            new { ingredientId = tomatoId, quantity = 2m, unit = "g", section = "Sauce" }
         },
         steps = new[] { "Prepare ingredients.", "Cook until ready." },
         equipment = new[] { "Pan" }
     };
 
-    private static object ValidRecipe() => new
+    private object ValidRecipe() => new
     {
         name = $"Integration recipe {Guid.NewGuid():N}",
         description = "Created by an API integration test.",
         servings = 4,
         prepTimeMinutes = 10,
         cookTimeMinutes = 20,
-        mealType = "Dinner",
-        course = "Main",
-        cookingMethod = "Bake",
-        cuisine = "Test",
-        tags = new[] { "integration" },
+        mealTypes = new[] { "dinner" },
+        courses = new[] { "main" },
+        cookingMethods = new[] { "baking" },
+        cuisines = new[] { "italian" },
+        tags = new[] { "vegetarian" },
         ingredients = new[]
         {
-            new { name = "Tomato", quantity = 2m, unit = "pieces", section = "Sauce" }
+            new { ingredientId = tomatoId, quantity = 2m, unit = "pieces", section = "Sauce" }
         },
         steps = new[] { "Prepare ingredients.", "Cook until ready." },
         equipment = new[] { "Pan" }
     };
 
-    private static object ImportRecipe(string name = "Imported integration recipe") => new
+    private object ImportRecipe(string name = "Imported integration recipe") => new
     {
         name,
         description = "Imported draft.",
@@ -353,14 +462,14 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         servings = 2,
         prepTimeMinutes = 5,
         cookTimeMinutes = 10,
-        mealType = "Dinner",
-        course = "Main",
-        cookingMethod = "Stovetop",
-        cuisine = "Test",
+        mealTypes = new[] { "dinner" },
+        courses = new[] { "main" },
+        cookingMethods = new[] { "pan-frying" },
+        cuisines = new[] { "danish" },
         tags = Array.Empty<string>(),
         ingredients = new[]
         {
-            new { name = "Onion", quantity = 1m, unit = "piece", section = "Base" }
+            new { ingredientId = onionId, quantity = 1m, unit = "piece", section = "Base" }
         },
         steps = new[] { "Cook the onion." },
         equipment = Array.Empty<string>()

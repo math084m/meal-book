@@ -7,8 +7,18 @@ namespace MealBook.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[RecipeValidationFilter]
 public sealed class RecipesController(IRecipeService recipes) : ControllerBase
 {
+    [HttpGet("suggestions")]
+    [AllowAnonymous]
+    [ProducesResponseType<IReadOnlyList<RecipeSuggestionResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<RecipeSuggestionResponse>>> GetSuggestions(
+        [FromQuery] string? q,
+        [FromQuery] string? lang,
+        CancellationToken cancellationToken) =>
+        Ok(await recipes.GetSuggestionsAsync(q, lang, cancellationToken));
+
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType<IReadOnlyList<RecipeResponse>>(StatusCodes.Status200OK)]

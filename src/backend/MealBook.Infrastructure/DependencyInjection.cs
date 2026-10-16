@@ -28,6 +28,7 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddScoped<IRecipeRepository, RecipeRepository>();
+        services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<IDatabaseHealth, DatabaseHealth>();
         services.AddScoped<AdminUserSeeder>();
         services.AddSingleton(new DatabaseMigrationRunner(connectionString));

@@ -1,9 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { I18nService } from './i18n.service';
 
 export interface RecipeIngredient {
+  ingredientId?: string | null;
   name: string;
   quantity: number;
   unit: string;
@@ -18,10 +19,10 @@ export interface Recipe {
   servings: number;
   prepTimeMinutes: number;
   cookTimeMinutes: number;
-  mealType: string;
-  course: string;
-  cookingMethod: string;
-  cuisine: string;
+  mealTypes: string[];
+  courses: string[];
+  cookingMethods: string[];
+  cuisines: string[];
   caloriesPerServing?: number | null;
   proteinGramsPerServing?: number | null;
   carbohydratesGramsPerServing?: number | null;
@@ -44,16 +45,22 @@ export interface Recipe {
 export interface RecipeSearch {
   search?: string;
   maxTotalMinutes?: number | null;
-  mealType?: string;
-  course?: string;
-  cookingMethod?: string;
-  cuisine?: string;
-  ingredient?: string;
-  tags?: string;
+  minTotalMinutes?: number | null;
+  mealTypes?: string[];
+  courses?: string[];
+  cookingMethods?: string[];
+  cuisines?: string[];
+  ingredients?: string[];
+  tags?: string[];
   maxCalories?: number | null;
   minRating?: number | null;
   sort?: string;
   lang?: string;
+}
+
+export interface RecipeSuggestion {
+  id: string;
+  name: string;
 }
 
 export interface RecipeDashboard {
@@ -78,10 +85,10 @@ export interface RecipeWrite {
   servings: number;
   prepTimeMinutes: number;
   cookTimeMinutes: number;
-  mealType: string;
-  course: string;
-  cookingMethod: string;
-  cuisine: string;
+  mealTypes: string[];
+  courses: string[];
+  cookingMethods: string[];
+  cuisines: string[];
   caloriesPerServing: number | null;
   proteinGramsPerServing: number | null;
   carbohydratesGramsPerServing: number | null;
@@ -105,6 +112,12 @@ export class RecipeApiService {
   getRecipes(search: RecipeSearch = {}): Observable<Recipe[]> {
     return this.http.get<Recipe[]>(`${apiUrl}recipes`, {
       params: this.toParams({ ...search, lang: this.i18n.lang() })
+    });
+  }
+
+  getSuggestions(query: string): Observable<RecipeSuggestion[]> {
+    return this.http.get<RecipeSuggestion[]>(`${apiUrl}recipes/suggestions`, {
+      params: { q: query, lang: this.i18n.lang() }
     });
   }
 
@@ -151,12 +164,16 @@ export class RecipeApiService {
     return this.http.delete<void>(`${apiUrl}recipes/${id}`);
   }
 
-  private toParams(search: RecipeSearch): Record<string, string> {
-    return Object.fromEntries(
-      Object.entries(search)
-        .filter((entry): entry is [string, string | number] =>
-          entry[1] !== undefined && entry[1] !== null && entry[1] !== '')
-        .map(([key, value]) => [key, String(value)])
-    );
+  private toParams(search: RecipeSearch): HttpParams {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(search)) {
+      if (value === undefined || value === null || value === '') continue;
+      if (Array.isArray(value)) {
+        for (const item of value) params = params.append(key, String(item));
+      } else {
+        params = params.set(key, String(value));
+      }
+    }
+    return params;
   }
 }

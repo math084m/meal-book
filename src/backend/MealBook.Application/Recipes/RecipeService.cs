@@ -6,9 +6,30 @@ namespace MealBook.Application.Recipes;
 
 public sealed class RecipeService(
     IRecipeRepository repository,
+    ICatalogRepository catalog,
     ITranslator translator,
     ILogger<RecipeService> logger) : IRecipeService
 {
+    public async Task<IReadOnlyList<RecipeSuggestionResponse>> GetSuggestionsAsync(
+        string? query,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        var recipes = await repository.GetAllAsync(
+            new RecipeSearchRequest { Search = query, Sort = "name", Lang = language },
+            cancellationToken);
+        var map = await CreateMapperAsync(recipes.Take(8).ToArray(), language, cancellationToken);
+        return recipes.Take(8)
+            .Select(map)
+            .Select(recipe => new RecipeSuggestionResponse(recipe.Id, recipe.Name))
+            .ToArray();
+    }
+
     public async Task<IReadOnlyList<RecipeResponse>> GetAllAsync(
         RecipeSearchRequest search,
         CancellationToken cancellationToken)
@@ -57,23 +78,27 @@ public sealed class RecipeService(
         CreateRecipeRequest request,
         CancellationToken cancellationToken)
     {
-        var recipe = CreateRecipe(request);
+        var recipe = await CreateRecipeAsync(request, cancellationToken);
         await repository.AddAsync(recipe, cancellationToken);
         if (recipe.IsPublished)
         {
             await TranslateAsync(recipe, cancellationToken);
         }
 
-        return ToResponse(new RecipeView(recipe, 0, null));
+        return (await GetByIdAsync(recipe.Id, null, cancellationToken))!;
     }
 
     public async Task<RecipeResponse> ImportAsync(
         ImportRecipeRequest request,
         CancellationToken cancellationToken)
     {
-        var recipe = CreateRecipe(request, isPublished: false, sourceUrl: request.SourceUrl);
+        var recipe = await CreateRecipeAsync(
+            request,
+            cancellationToken,
+            isPublished: false,
+            sourceUrl: request.SourceUrl);
         await repository.AddAsync(recipe, cancellationToken);
-        return ToResponse(new RecipeView(recipe, 0, null));
+        return (await GetByIdAsync(recipe.Id, null, cancellationToken))!;
     }
 
     public async Task<IReadOnlyList<RecipeResponse>> GetDraftsAsync(
@@ -96,7 +121,7 @@ public sealed class RecipeService(
             return null;
         }
 
-        var recipe = CreateRecipe(request, id, current.Recipe.AddedAt);
+        var recipe = await CreateRecipeAsync(request, cancellationToken, id, current.Recipe.AddedAt);
         if (!await repository.UpdateAsync(recipe, cancellationToken))
         {
             return null;
@@ -196,9 +221,11 @@ public sealed class RecipeService(
         CancellationToken cancellationToken)
     {
         var requested = RecipeLanguages.Normalize(language);
+        var catalogIngredients = (await catalog.GetIngredientsAsync(cancellationToken))
+            .ToDictionary(ingredient => ingredient.Id);
         if (requested is null)
         {
-            return view => ToResponse(view);
+            return view => ToResponse(view, catalogIngredients);
         }
 
         var translations = await repository.GetTranslationsAsync(
@@ -210,50 +237,92 @@ public sealed class RecipeService(
             cancellationToken);
         return view => ToResponse(
             view,
+            catalogIngredients,
             translations.TryGetValue(view.Recipe.Id, out var translation) ? translation : null);
     }
 
-    private static Recipe CreateRecipe(
+    private async Task<Recipe> CreateRecipeAsync(
         RecipeWriteRequest request,
+        CancellationToken cancellationToken,
         Guid? id = null,
         DateTimeOffset? addedAt = null,
         bool? isPublished = null,
-        string? sourceUrl = null) =>
-        Recipe.Create(
+        string? sourceUrl = null)
+    {
+        var language = RecipeLanguages.Normalize(request.Language) ?? "en";
+        var terms = (await catalog.GetTermsAsync(cancellationToken))
+            .Select(term => (term.Kind, term.Slug))
+            .ToHashSet();
+        var ingredients = (await catalog.GetIngredientsAsync(cancellationToken))
+            .ToDictionary(ingredient => ingredient.Id);
+
+        var recipeTerms = new List<RecipeTerm>();
+        void AddTerms(string kind, IEnumerable<string> slugs)
+        {
+            foreach (var slug in slugs.Select(value => value.Trim()).Distinct())
+            {
+                if (!terms.Contains((kind, slug)))
+                {
+                    throw new RecipeValidationException($"Unknown {kind} value '{slug}'.");
+                }
+
+                recipeTerms.Add(RecipeTerm.Create(kind, slug));
+            }
+        }
+
+        AddTerms(TermKinds.MealType, request.MealTypes);
+        AddTerms(TermKinds.Course, request.Courses);
+        AddTerms(TermKinds.CookingMethod, request.CookingMethods);
+        AddTerms(TermKinds.Cuisine, request.Cuisines);
+        AddTerms(TermKinds.Tag, request.Tags);
+
+        var recipeIngredients = request.Ingredients.Select((ingredient, position) =>
+        {
+            if (ingredient.IngredientId is not { } ingredientId
+                || !ingredients.TryGetValue(ingredientId, out var known))
+            {
+                throw new RecipeValidationException("Every ingredient must exist in the ingredient list.");
+            }
+
+            return RecipeIngredient.Create(
+                known.Id,
+                known.NameFor(language),
+                ingredient.Quantity,
+                ingredient.Unit,
+                ingredient.Section,
+                ingredient.Notes,
+                position);
+        }).ToList();
+
+        return Recipe.Create(
             request.Name,
             request.Description,
             request.Servings,
             request.PrepTimeMinutes,
             request.CookTimeMinutes,
-            request.MealType,
-            request.Course,
-            request.CookingMethod,
-            request.Cuisine,
             request.CaloriesPerServing,
             request.ProteinGramsPerServing,
             request.CarbohydratesGramsPerServing,
             request.FatGramsPerServing,
-            request.Ingredients.Select((ingredient, position) =>
-                RecipeIngredient.Create(
-                    ingredient.Name,
-                    ingredient.Quantity,
-                    ingredient.Unit,
-                    ingredient.Section,
-                    ingredient.Notes,
-                    position)),
+            recipeIngredients,
             request.Steps.Select((step, position) => RecipeStep.Create(step, position)),
             request.Equipment.Select((item, position) => RecipeEquipment.Create(item, position)),
-            request.Tags,
+            recipeTerms,
             id,
             addedAt,
             isPublished ?? request.IsPublished,
             sourceUrl ?? request.SourceUrl,
-            RecipeLanguages.Normalize(request.Language) ?? "en");
+            language);
+    }
 
-    private static RecipeResponse ToResponse(RecipeView view, RecipeTranslation? translation = null)
+    private static RecipeResponse ToResponse(
+        RecipeView view,
+        IReadOnlyDictionary<Guid, Ingredient> catalogIngredients,
+        RecipeTranslation? translation = null)
     {
         var recipe = view.Recipe;
         var content = ReadContent(recipe, translation);
+        var displayLanguage = content is null ? recipe.Language : translation!.Language;
         var ingredients = recipe.Ingredients.OrderBy(ingredient => ingredient.Position).ToArray();
         return new RecipeResponse(
             recipe.Id,
@@ -262,10 +331,10 @@ public sealed class RecipeService(
             recipe.Servings,
             recipe.PrepTimeMinutes,
             recipe.CookTimeMinutes,
-            recipe.MealType,
-            recipe.Course,
-            recipe.CookingMethod,
-            recipe.Cuisine,
+            recipe.TermsOf(TermKinds.MealType).ToArray(),
+            recipe.TermsOf(TermKinds.Course).ToArray(),
+            recipe.TermsOf(TermKinds.CookingMethod).ToArray(),
+            recipe.TermsOf(TermKinds.Cuisine).ToArray(),
             recipe.CaloriesPerServing,
             recipe.ProteinGramsPerServing,
             recipe.CarbohydratesGramsPerServing,
@@ -276,17 +345,22 @@ public sealed class RecipeService(
             view.CookCount,
             view.RecentCookCount,
             view.AverageRating,
-            content?.Tags ?? recipe.Tags.OrderBy(tag => tag.Position).Select(tag => tag.Name).ToList(),
+            recipe.TermsOf(TermKinds.Tag).ToArray(),
             ingredients
                 .Select((ingredient, index) =>
                 {
                     var translated = content?.Ingredients[index];
+                    var name = ingredient.IngredientId is { } ingredientId
+                        && catalogIngredients.TryGetValue(ingredientId, out var known)
+                            ? known.NameFor(displayLanguage)
+                            : translated?.Name ?? ingredient.Name;
                     return new RecipeIngredientResponse(
-                        translated?.Name ?? ingredient.Name,
+                        name,
                         ingredient.Quantity,
                         translated?.Unit ?? ingredient.Unit,
                         content is null ? ingredient.Section : translated?.Section,
-                        content is null ? ingredient.Notes : translated?.Notes);
+                        content is null ? ingredient.Notes : translated?.Notes,
+                        ingredient.IngredientId);
                 })
                 .ToArray(),
             content?.Steps
@@ -294,7 +368,7 @@ public sealed class RecipeService(
             content?.Equipment
                 ?? recipe.Equipment.OrderBy(item => item.Position).Select(item => item.Name).ToList(),
             recipe.Language,
-            content is null ? recipe.Language : translation!.Language,
+            displayLanguage,
             content is not null);
     }
 
@@ -313,7 +387,6 @@ public sealed class RecipeService(
                 && content.Ingredients.Count == recipe.Ingredients.Count
                 && content.Steps.Count == recipe.Steps.Count
                 && content.Equipment.Count == recipe.Equipment.Count
-                && content.Tags.Count == recipe.Tags.Count
                     ? content
                     : null;
         }

@@ -11,6 +11,7 @@
         @if (auth.currentUser()?.isAdmin) {
           <a routerLink="/admin/recipes/drafts">{{ i18n.t('nav.drafts') }}</a>
           <a routerLink="/admin/recipes/new">{{ i18n.t('nav.add') }}</a>
+          <a routerLink="/admin/ingredients">{{ i18n.t('nav.ingredients') }}</a>
         }
         <span class="nav-email">{{ auth.currentUser()?.email }}</span>
         <button class="text-button" type="button" (click)="auth.logout()">{{ i18n.t('nav.signOut') }}</button>

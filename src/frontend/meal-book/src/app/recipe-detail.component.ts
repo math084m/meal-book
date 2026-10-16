@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService, TranslationKey } from './i18n.service';
 import { Recipe, RecipeApiService } from './recipe-api.service';
+import { CatalogService } from './catalog.service';
 
 @Component({
   standalone: true,
@@ -13,7 +14,7 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
     @if (recipe(); as item) {
       <a class="back-link" routerLink="/recipes">{{ i18n.t('common.backToRecipes') }}</a>
       <section class="recipe-detail-heading">
-        <p class="eyebrow">{{ item.cuisine || i18n.t('common.recipeFallback') }} · {{ item.mealType || i18n.t('common.anyMeal') }} · {{ item.course || i18n.t('common.anyCourse') }}</p>
+        <p class="eyebrow">{{ catalog.label('cuisine', item.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('mealType', item.mealTypes[0] ?? '') || i18n.t('common.anyMeal') }} · {{ catalog.label('course', item.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>
         <h1>{{ item.name }}</h1>
         @if (item.isTranslated) {
           <p class="translation-badge">{{ i18n.t('detail.translated', { language: i18n.languageName(item.language) }) }}</p>
@@ -28,7 +29,11 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
           @if (item.averageRating) { <span>★ {{ item.averageRating | number:'1.1-1' }}</span> }
         </div>
         <div class="tag-list">
-          @for (tag of item.tags; track tag) { <span class="tag">{{ tag }}</span> }
+          @for (slug of item.mealTypes; track slug) { <span class="tag">{{ catalog.label('mealType', slug) }}</span> }
+          @for (slug of item.courses; track slug) { <span class="tag">{{ catalog.label('course', slug) }}</span> }
+          @for (slug of item.cookingMethods; track slug) { <span class="tag">{{ catalog.label('cookingMethod', slug) }}</span> }
+          @for (slug of item.cuisines; track slug) { <span class="tag">{{ catalog.label('cuisine', slug) }}</span> }
+          @for (tag of item.tags; track tag) { <span class="tag">{{ catalog.label('tag', tag) }}</span> }
         </div>
         @if (auth.currentUser()?.isAdmin) {
           <div class="admin-actions">
@@ -118,6 +123,7 @@ export class RecipeDetailComponent {
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
   readonly i18n = inject(I18nService);
+  readonly catalog = inject(CatalogService);
   readonly recipe = signal<Recipe | null>(null);
   readonly error = signal<TranslationKey | null>(null);
   readonly message = signal<TranslationKey | null>(null);

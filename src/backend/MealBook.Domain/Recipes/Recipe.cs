@@ -12,10 +12,6 @@ public sealed class Recipe
     public int Servings { get; private set; }
     public int PrepTimeMinutes { get; private set; }
     public int CookTimeMinutes { get; private set; }
-    public string MealType { get; private set; } = string.Empty;
-    public string Course { get; private set; } = string.Empty;
-    public string CookingMethod { get; private set; } = string.Empty;
-    public string Cuisine { get; private set; } = string.Empty;
     public int? CaloriesPerServing { get; private set; }
     public int? ProteinGramsPerServing { get; private set; }
     public int? CarbohydratesGramsPerServing { get; private set; }
@@ -27,7 +23,10 @@ public sealed class Recipe
     public List<RecipeIngredient> Ingredients { get; private set; } = [];
     public List<RecipeStep> Steps { get; private set; } = [];
     public List<RecipeEquipment> Equipment { get; private set; } = [];
-    public List<RecipeTag> Tags { get; private set; } = [];
+    public List<RecipeTerm> Terms { get; private set; } = [];
+
+    public IEnumerable<string> TermsOf(string kind) =>
+        Terms.Where(term => term.Kind == kind).Select(term => term.Slug).OrderBy(slug => slug);
 
     public void Publish() => IsPublished = true;
 
@@ -37,10 +36,6 @@ public sealed class Recipe
         int servings,
         int prepTimeMinutes,
         int cookTimeMinutes,
-        string mealType,
-        string course,
-        string cookingMethod,
-        string cuisine,
         int? caloriesPerServing,
         int? proteinGramsPerServing,
         int? carbohydratesGramsPerServing,
@@ -48,7 +43,7 @@ public sealed class Recipe
         IEnumerable<RecipeIngredient> ingredients,
         IEnumerable<RecipeStep> steps,
         IEnumerable<RecipeEquipment> equipment,
-        IEnumerable<string> tags,
+        IEnumerable<RecipeTerm> terms,
         Guid? id = null,
         DateTimeOffset? addedAt = null,
         bool isPublished = true,
@@ -63,10 +58,6 @@ public sealed class Recipe
             Servings = servings,
             PrepTimeMinutes = prepTimeMinutes,
             CookTimeMinutes = cookTimeMinutes,
-            MealType = mealType.Trim(),
-            Course = course.Trim(),
-            CookingMethod = cookingMethod.Trim(),
-            Cuisine = cuisine.Trim(),
             CaloriesPerServing = caloriesPerServing,
             ProteinGramsPerServing = proteinGramsPerServing,
             CarbohydratesGramsPerServing = carbohydratesGramsPerServing,
@@ -77,11 +68,8 @@ public sealed class Recipe
             Ingredients = ingredients.ToList(),
             Steps = steps.ToList(),
             Equipment = equipment.ToList(),
-            Tags = tags
-                .Select(tag => tag.Trim())
-                .Where(tag => tag.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select((tag, position) => RecipeTag.Create(tag, position))
+            Terms = terms
+                .DistinctBy(term => (term.Kind, term.Slug))
                 .ToList()
         };
 }
@@ -134,19 +122,66 @@ public sealed class RecipeCookLog
         };
 }
 
-public sealed class RecipeTag
+public static class TermKinds
 {
-    private RecipeTag()
+    public const string MealType = "mealType";
+    public const string Course = "course";
+    public const string CookingMethod = "cookingMethod";
+    public const string Cuisine = "cuisine";
+    public const string Tag = "tag";
+
+    public static readonly IReadOnlyList<string> All = [MealType, Course, CookingMethod, Cuisine, Tag];
+}
+
+// A premade taxonomy value (meal type, course, cooking method, cuisine or tag).
+public sealed class Term
+{
+    private Term()
+    {
+    }
+
+    public string Kind { get; private set; } = string.Empty;
+    public string Slug { get; private set; } = string.Empty;
+    public string NameEn { get; private set; } = string.Empty;
+    public string NameDa { get; private set; } = string.Empty;
+    public int Position { get; private set; }
+}
+
+public sealed class RecipeTerm
+{
+    private RecipeTerm()
+    {
+    }
+
+    public Guid RecipeId { get; private set; }
+    public string Kind { get; private set; } = string.Empty;
+    public string Slug { get; private set; } = string.Empty;
+
+    public static RecipeTerm Create(string kind, string slug) => new() { Kind = kind, Slug = slug };
+}
+
+// A premade ingredient that recipes reference instead of free text.
+public sealed class Ingredient
+{
+    private Ingredient()
     {
     }
 
     public Guid Id { get; private set; }
-    public Guid RecipeId { get; private set; }
-    public string Name { get; private set; } = string.Empty;
-    public int Position { get; private set; }
+    public string NameEn { get; private set; } = string.Empty;
+    public string NameDa { get; private set; } = string.Empty;
 
-    public static RecipeTag Create(string name, int position) =>
-        new() { Id = Guid.NewGuid(), Name = name.Trim(), Position = position };
+    public string NameFor(string language) =>
+        language == "da" && !string.IsNullOrWhiteSpace(NameDa) ? NameDa : NameEn;
+
+    public void Rename(string nameEn, string nameDa)
+    {
+        NameEn = nameEn.Trim();
+        NameDa = nameDa.Trim();
+    }
+
+    public static Ingredient Create(string nameEn, string nameDa) =>
+        new() { Id = Guid.NewGuid(), NameEn = nameEn.Trim(), NameDa = nameDa.Trim() };
 }
 
 public sealed class RecipeIngredient
@@ -157,6 +192,7 @@ public sealed class RecipeIngredient
 
     public Guid Id { get; private set; }
     public Guid RecipeId { get; private set; }
+    public Guid? IngredientId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public decimal Quantity { get; private set; }
     public string Unit { get; private set; } = string.Empty;
@@ -165,6 +201,7 @@ public sealed class RecipeIngredient
     public int Position { get; private set; }
 
     public static RecipeIngredient Create(
+        Guid ingredientId,
         string name,
         decimal quantity,
         string unit,
@@ -174,6 +211,7 @@ public sealed class RecipeIngredient
         new()
         {
             Id = Guid.NewGuid(),
+            IngredientId = ingredientId,
             Name = name.Trim(),
             Quantity = quantity,
             Unit = unit.Trim(),

@@ -3,6 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { I18nService } from './i18n.service';
 import { RecipeApiService, RecipeDashboard } from './recipe-api.service';
+import { CatalogService } from './catalog.service';
 
 @Component({
   standalone: true,
@@ -50,7 +51,7 @@ import { RecipeApiService, RecipeDashboard } from './recipe-api.service';
           <div class="recipe-grid">
             @for (recipe of data.recentlyAdded; track recipe.id) {
               <a class="recipe-card" [routerLink]="['/recipes', recipe.id]">
-                <p class="eyebrow">{{ recipe.cuisine || i18n.t('common.recipeFallback') }} · {{ recipe.course || i18n.t('common.anyCourse') }}</p>
+                <p class="eyebrow">{{ catalog.label('cuisine', recipe.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('course', recipe.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>
                 <h3>{{ recipe.name }}</h3>
                 <p class="description">{{ recipe.description || i18n.t('home.added.descriptionFallback') }}</p>
                 <p class="recipe-meta">{{ i18n.t('common.minutes', { n: recipe.prepTimeMinutes + recipe.cookTimeMinutes }) }} · {{ i18n.t('common.servings', { n: recipe.servings }) }}</p>
@@ -72,7 +73,7 @@ import { RecipeApiService, RecipeDashboard } from './recipe-api.service';
               <a class="recipe-card" [routerLink]="['/recipes', recipe.id]">
                 <p class="eyebrow">                {{ i18n.t('home.favorites.cooks', { n: recipe.cookCount }) }}@if (recipe.averageRating) { · ★ {{ recipe.averageRating | number:'1.1-1' }} }</p>
                 <h3>{{ recipe.name }}</h3>
-                                <p class="recipe-meta">{{ recipe.mealType || i18n.t('home.favorites.anyMeal') }} · {{ recipe.cuisine || i18n.t('home.favorites.noCuisine') }}</p>
+                                <p class="recipe-meta">{{ catalog.label('mealType', recipe.mealTypes[0] ?? '') || i18n.t('home.favorites.anyMeal') }} · {{ catalog.label('cuisine', recipe.cuisines[0] ?? '') || i18n.t('home.favorites.noCuisine') }}</p>
               </a>
             }
           </div>
@@ -89,6 +90,7 @@ import { RecipeApiService, RecipeDashboard } from './recipe-api.service';
 export class HomeComponent {
   private readonly api = inject(RecipeApiService);
   readonly i18n = inject(I18nService);
+  readonly catalog = inject(CatalogService);
   readonly dashboard = signal<RecipeDashboard | null>(null);
   readonly error = signal(false);
 
