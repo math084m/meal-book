@@ -703,6 +703,32 @@ textarea:focus {
   margin: 1.5rem 0 3rem;
 }
 
+.recipe-admin-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin: 1.5rem 0 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.delete-confirmation {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--danger);
+  background: var(--paper);
+}
+
+.delete-confirmation h2,
+.delete-confirmation p {
+  margin-top: 0;
+}
+
+.delete-confirmation .admin-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .auth-card {
   width: min(100%, 520px);
   margin: 5rem auto;

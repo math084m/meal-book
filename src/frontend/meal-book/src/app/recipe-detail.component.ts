@@ -47,12 +47,6 @@ import { FavoriteButtonComponent } from './favorite-button.component';
           <app-favorite-button [recipeId]="item.id" />
           <app-plan-button [recipeId]="item.id" />
         </div>
-        @if (auth.currentUser()?.isAdmin) {
-          <div class="admin-actions">
-            <a class="button secondary" [routerLink]="['/admin/recipes', item.id, 'edit']">{{ i18n.t('detail.edit') }}</a>
-            <button class="button danger" type="button" (click)="deleteRecipe()">{{ i18n.t('detail.delete') }}</button>
-          </div>
-        }
       </section>
 
       <div class="detail-columns">
@@ -131,6 +125,26 @@ import { FavoriteButtonComponent } from './favorite-button.component';
         <p class="muted sign-in-note"><a routerLink="/login">{{ i18n.t('detail.signInLink') }}</a>{{ i18n.t('detail.signInNote.after') }}</p>
       }
       <p class="muted added-date">{{ i18n.t('detail.added', { date: (item.addedAt | date:'longDate') ?? '' }) }}</p>
+      @if (auth.currentUser()?.isAdmin) {
+        @if (deleteRequested()) {
+          <section class="delete-confirmation" role="alertdialog" aria-labelledby="delete-confirmation-title">
+            <h2 id="delete-confirmation-title">{{ i18n.t('detail.deleteConfirmTitle') }}</h2>
+            <p>{{ i18n.t('detail.deleteConfirm', { name: item.name }) }}</p>
+            @if (deleteError()) { <p class="error-message" role="alert">{{ i18n.t(deleteError()!) }}</p> }
+            <div class="admin-actions">
+              <button class="button secondary" type="button" [disabled]="deleting()" (click)="cancelDelete()">{{ i18n.t('common.cancel') }}</button>
+              <button class="button danger" type="button" [disabled]="deleting()" (click)="deleteRecipe()">
+                @if (deleting()) { <span class="spinner" aria-hidden="true"></span> }
+                {{ i18n.t('detail.deleteConfirmAction') }}
+              </button>
+            </div>
+          </section>
+        }
+        <div class="recipe-admin-controls">
+          <a class="button secondary" [routerLink]="['/admin/recipes', item.id, 'edit']">{{ i18n.t('detail.edit') }}</a>
+          <button class="button danger" type="button" [disabled]="deleteRequested()" (click)="requestDelete()">{{ i18n.t('detail.delete') }}</button>
+        </div>
+      }
     } @else if (error()) {
       <div class="state-card" role="alert">{{ i18n.t(error()!) }}</div>
     } @else {
@@ -150,6 +164,9 @@ export class RecipeDetailComponent {
   readonly message = signal<TranslationKey | null>(null);
   readonly saving = signal(false);
   readonly servings = signal(1);
+  readonly deleteRequested = signal(false);
+  readonly deleting = signal(false);
+  readonly deleteError = signal<TranslationKey | null>(null);
   rating: number | null = null;
   notes = '';
 
@@ -228,12 +245,28 @@ export class RecipeDetailComponent {
     });
   }
 
+  requestDelete(): void {
+    this.deleteError.set(null);
+    this.deleteRequested.set(true);
+  }
+
+  cancelDelete(): void {
+    if (this.deleting()) return;
+    this.deleteRequested.set(false);
+    this.deleteError.set(null);
+  }
+
   deleteRecipe(): void {
     const recipe = this.recipe();
-    if (!recipe || !window.confirm(this.i18n.t('detail.deleteConfirm', { name: recipe.name }))) return;
+    if (!recipe || this.deleting() || !this.deleteRequested()) return;
+    this.deleting.set(true);
+    this.deleteError.set(null);
     this.api.deleteRecipe(recipe.id).subscribe({
       next: () => void this.router.navigate(['/recipes']),
-      error: () => this.error.set('detail.deleteFailed')
+      error: () => {
+        this.deleting.set(false);
+        this.deleteError.set('detail.deleteFailed');
+      }
     });
   }
 }
