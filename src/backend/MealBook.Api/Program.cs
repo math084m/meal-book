@@ -55,6 +55,9 @@ if (serveFrontend)
     });
 }
 
+// Explicit routing after static files; otherwise the catch-all SPA fallback endpoint
+// is selected first and static file middleware skips every request.
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -143,3 +146,5 @@ if (serveFrontend)
 }
 
 app.Run();
+
+public partial class Program;
