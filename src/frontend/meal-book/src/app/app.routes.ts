@@ -1,29 +1,20 @@
 import { Routes } from '@angular/router';
 import { HomeComponent } from './home.component';
-import { RecipeListComponent } from './recipe-list.component';
-import { RecipeDetailComponent } from './recipe-detail.component';
-import { LoginComponent } from './login.component';
-import { RegisterComponent } from './register.component';
-import { CookingHistoryComponent } from './cooking-history.component';
-import { AdminRecipeFormComponent } from './admin-recipe-form.component';
 import { adminGuard, userGuard } from './auth.guard';
-import { PlanComponent } from './plan.component';
-import { CookModeComponent } from './cook-mode.component';
-import { AdminDraftsComponent } from './admin-drafts.component';
-import { AdminIngredientsComponent } from './admin-ingredients.component';
 
+// Everything except the landing page is lazy-loaded to keep the initial bundle small.
 export const routes: Routes = [
   { path: '', component: HomeComponent },
-  { path: 'recipes', component: RecipeListComponent },
-  { path: 'recipes/:id', component: RecipeDetailComponent },
-  { path: 'recipes/:id/cook', component: CookModeComponent },
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'history', component: CookingHistoryComponent, canActivate: [userGuard] },
-  { path: 'plan', component: PlanComponent, canActivate: [userGuard] },
-  { path: 'admin/recipes/new', component: AdminRecipeFormComponent, canActivate: [adminGuard] },
-  { path: 'admin/recipes/drafts', component: AdminDraftsComponent, canActivate: [adminGuard] },
-  { path: 'admin/ingredients', component: AdminIngredientsComponent, canActivate: [adminGuard] },
-  { path: 'admin/recipes/:id/edit', component: AdminRecipeFormComponent, canActivate: [adminGuard] },
+  { path: 'recipes', loadComponent: () => import('./recipe-list.component').then(m => m.RecipeListComponent) },
+  { path: 'recipes/:id', loadComponent: () => import('./recipe-detail.component').then(m => m.RecipeDetailComponent) },
+  { path: 'recipes/:id/cook', loadComponent: () => import('./cook-mode.component').then(m => m.CookModeComponent) },
+  { path: 'login', loadComponent: () => import('./login.component').then(m => m.LoginComponent) },
+  { path: 'register', loadComponent: () => import('./register.component').then(m => m.RegisterComponent) },
+  { path: 'history', loadComponent: () => import('./cooking-history.component').then(m => m.CookingHistoryComponent), canActivate: [userGuard] },
+  { path: 'plan', loadComponent: () => import('./plan.component').then(m => m.PlanComponent), canActivate: [userGuard] },
+  { path: 'admin/recipes/new', loadComponent: () => import('./admin-recipe-form.component').then(m => m.AdminRecipeFormComponent), canActivate: [adminGuard] },
+  { path: 'admin/recipes/drafts', loadComponent: () => import('./admin-drafts.component').then(m => m.AdminDraftsComponent), canActivate: [adminGuard] },
+  { path: 'admin/ingredients', loadComponent: () => import('./admin-ingredients.component').then(m => m.AdminIngredientsComponent), canActivate: [adminGuard] },
+  { path: 'admin/recipes/:id/edit', loadComponent: () => import('./admin-recipe-form.component').then(m => m.AdminRecipeFormComponent), canActivate: [adminGuard] },
   { path: '**', redirectTo: '' }
 ];

@@ -32,7 +32,7 @@ import { I18nService, TranslationKey } from './i18n.service';
               }
               <div class="draft-actions">
                 <a class="button" [routerLink]="['/admin/recipes', recipe.id, 'edit']">{{ i18n.t('drafts.review') }}</a>
-                <button type="button" class="button" [disabled]="busyId() === recipe.id" (click)="publish(recipe)">{{ i18n.t('drafts.publish') }}</button>
+                <button type="button" class="button" [disabled]="busyId() === recipe.id" (click)="publish(recipe)">@if (busyId() === recipe.id) { <span class="spinner" aria-hidden="true"></span> }{{ i18n.t('drafts.publish') }}</button>
                 <button type="button" class="button danger" [disabled]="busyId() === recipe.id" (click)="discard(recipe)">{{ i18n.t('drafts.discard') }}</button>
               </div>
             </article>

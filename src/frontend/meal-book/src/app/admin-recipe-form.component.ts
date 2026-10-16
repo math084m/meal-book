@@ -125,7 +125,7 @@ import { SelectFieldComponent } from './select-field.component';
       <p class="field-hint">{{ i18n.t('form.ingredient.missing') }}</p>
       <div class="form-actions">
         <a class="button secondary" routerLink="/recipes">{{ i18n.t('common.cancel') }}</a>
-        <button class="button" type="submit" [disabled]="saving()">{{ saving() ? i18n.t('form.saving') : i18n.t('form.save') }}</button>
+        <button class="button" type="submit" [disabled]="saving()">@if (saving()) { <span class="spinner" aria-hidden="true"></span> }{{ saving() ? i18n.t('form.saving') : i18n.t('form.save') }}</button>
       </div>
     </form>
   `,

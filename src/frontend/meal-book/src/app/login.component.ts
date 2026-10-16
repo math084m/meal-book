@@ -20,7 +20,7 @@ import { I18nService } from './i18n.service';
           <input name="password" type="password" [(ngModel)]="password" required autocomplete="current-password" />
         </label>
         @if (error()) { <p class="error-message" role="alert">{{ i18n.t('auth.login.failed') }}</p> }
-        <button class="button" type="submit" [disabled]="busy()">{{ i18n.t('auth.login.submit') }}</button>
+        <button class="button" type="submit" [disabled]="busy()">@if (busy()) { <span class="spinner" aria-hidden="true"></span> }{{ i18n.t('auth.login.submit') }}</button>
       </form>
       <p class="auth-switch">{{ i18n.t('auth.login.new') }} <a routerLink="/register">{{ i18n.t('auth.login.create') }}</a></p>
     </section>

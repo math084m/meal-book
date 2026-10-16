@@ -633,7 +633,7 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         await SignInAdminAsync(client);
 
         var sections = await ReadJsonAsync(await client.GetAsync("/api/shop-sections"));
-        Assert.Equal(9, sections.GetArrayLength());
+        Assert.Equal(10, sections.GetArrayLength());
         Assert.Contains(sections.EnumerateArray(), section => section.GetProperty("slug").GetString() == "dairy");
 
         var name = $"Sectioned {Guid.NewGuid():N}";

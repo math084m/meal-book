@@ -122,7 +122,7 @@ import { FavoriteButtonComponent } from './favorite-button.component';
             <label>{{ i18n.t('detail.notes') }}
               <input name="notes" [(ngModel)]="notes" maxlength="1000" [placeholder]="i18n.t('detail.notes.placeholder')" />
             </label>
-            <button class="button" type="submit" [disabled]="saving()">{{ i18n.t('detail.cooked') }}</button>
+            <button class="button" type="submit" [disabled]="saving()">@if (saving()) { <span class="spinner" aria-hidden="true"></span> }{{ i18n.t('detail.cooked') }}</button>
           </form>
           @if (message()) { <p class="success-message" role="status">{{ i18n.t(message()!) }}</p> }
           @if (error()) { <p class="error-message" role="alert">{{ i18n.t(error()!) }}</p> }

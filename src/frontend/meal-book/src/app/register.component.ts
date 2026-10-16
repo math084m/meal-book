@@ -21,7 +21,7 @@ import { I18nService } from './i18n.service';
           <span class="field-hint">{{ i18n.t('auth.register.hint') }}</span>
         </label>
         @if (error()) { <p class="error-message" role="alert">{{ i18n.t('auth.register.failed') }}</p> }
-        <button class="button" type="submit" [disabled]="busy()">{{ i18n.t('auth.register.submit') }}</button>
+        <button class="button" type="submit" [disabled]="busy()">@if (busy()) { <span class="spinner" aria-hidden="true"></span> }{{ i18n.t('auth.register.submit') }}</button>
       </form>
       <p class="auth-switch">{{ i18n.t('auth.register.existing') }} <a routerLink="/login">{{ i18n.t('nav.signIn') }}</a></p>
     </section>
