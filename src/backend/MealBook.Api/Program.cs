@@ -3,6 +3,7 @@ using MealBook.Application.Recipes;
 using MealBook.Infrastructure;
 using MealBook.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.FileProviders;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,10 +40,19 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 var serveFrontend = Directory.Exists(Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
+PhysicalFileProvider? frontendFileProvider = null;
 if (serveFrontend)
 {
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
+    frontendFileProvider = new PhysicalFileProvider(
+        Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        FileProvider = frontendFileProvider
+    });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = frontendFileProvider
+    });
 }
 
 app.UseAuthentication();
@@ -123,7 +133,13 @@ app.MapGet("/api/auth/me", (ClaimsPrincipal principal) =>
 app.MapControllers();
 if (serveFrontend)
 {
-    app.MapFallbackToFile("{*path:regex(^(?!api(/|$)).*$)}", "index.html");
+    app.MapFallbackToFile(
+        "{*path:regex(^(?!api(/|$)).*$)}",
+        "index.html",
+        new StaticFileOptions
+        {
+            FileProvider = frontendFileProvider
+        });
 }
 
 app.Run();
