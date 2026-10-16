@@ -243,6 +243,10 @@ const en = {
   'form.save': 'Save recipe',
   'form.loadFailed': 'Could not load recipe for editing.',
   'form.saveFailed': 'Could not save recipe. Check required fields and try again.',
+  'form.image': 'Cover image',
+  'form.imageHint': 'JPEG, PNG or WebP. Resized in your browser before upload.',
+  'form.imageRemove': 'Remove image',
+  'form.imageFailed': 'Could not upload the image. The recipe was saved; try again from edit.',
   'form.defaultSection': 'Ingredients',
 
   'auth.login.eyebrow': 'WELCOME BACK',
@@ -499,6 +503,10 @@ const da: Record<TranslationKey, string> = {
   'form.save': 'Gem opskrift',
   'form.loadFailed': 'Opskriften kunne ikke indlæses til redigering.',
   'form.saveFailed': 'Opskriften kunne ikke gemmes. Tjek de påkrævede felter, og prøv igen.',
+  'form.image': 'Forsidebillede',
+  'form.imageHint': 'JPEG, PNG eller WebP. Skaleres ned i din browser før upload.',
+  'form.imageRemove': 'Fjern billede',
+  'form.imageFailed': 'Billedet kunne ikke uploades. Opskriften er gemt; prøv igen fra redigering.',
   'form.defaultSection': 'Ingredienser',
 
   'auth.login.eyebrow': 'VELKOMMEN TILBAGE',

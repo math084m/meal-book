@@ -27,6 +27,10 @@ public interface IRecipeRepository
 
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<RecipeImageInfo?> GetImageInfoAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<bool> SetImageAsync(Guid id, DateTimeOffset? updatedAt, CancellationToken cancellationToken);
+
     Task<RecipeCookedResponse?> LogCookedAsync(
         Guid recipeId,
         string userId,

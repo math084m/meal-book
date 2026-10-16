@@ -48,6 +48,7 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .OnDelete(DeleteBehavior.Cascade);
 
         recipe.Property(item => item.Language).HasMaxLength(2).IsRequired();
+        recipe.Property(item => item.ImageUpdatedAt);
 
         var translation = modelBuilder.Entity<RecipeTranslation>();
         translation.ToTable("RecipeTranslations");

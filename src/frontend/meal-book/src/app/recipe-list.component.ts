@@ -5,13 +5,14 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { Recipe, RecipeApiService, RecipeSuggestion } from './recipe-api.service';
+import { RecipeImagePipe } from './recipe-image.pipe';
 import { I18nService, TranslationKey } from './i18n.service';
 import { CatalogService } from './catalog.service';
 import { SelectFieldComponent } from './select-field.component';
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink, DecimalPipe, SelectFieldComponent],
+  imports: [FormsModule, RouterLink, DecimalPipe, SelectFieldComponent, RecipeImagePipe],
   template: `
     <section class="page-heading">
       <p class="eyebrow">{{ i18n.t('list.eyebrow') }}</p>
@@ -106,6 +107,7 @@ import { SelectFieldComponent } from './select-field.component';
           <div class="recipe-grid">
             @for (recipe of recipeList; track recipe.id) {
               <a class="recipe-card" [routerLink]="['/recipes', recipe.id]">
+                @if (recipe.imageUrl | recipeImage; as src) { <img class="card-image" [src]="src" alt="" loading="lazy" /> }
                 <p class="eyebrow">{{ catalog.label('cuisine', recipe.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('course', recipe.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>
                 <h3>{{ recipe.name }}</h3>
                 <p class="description">{{ recipe.description || i18n.t('list.descriptionFallback') }}</p>

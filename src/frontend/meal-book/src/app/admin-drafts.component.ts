@@ -2,11 +2,12 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { Recipe, RecipeApiService } from './recipe-api.service';
+import { RecipeImagePipe } from './recipe-image.pipe';
 import { I18nService, TranslationKey } from './i18n.service';
 
 @Component({
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, RecipeImagePipe],
   template: `
     <section class="page-heading">
       <p class="eyebrow">{{ i18n.t('drafts.eyebrow') }}</p>
@@ -21,6 +22,7 @@ import { I18nService, TranslationKey } from './i18n.service';
         <div class="recipe-grid draft-grid">
           @for (recipe of list; track recipe.id) {
             <article class="recipe-card">
+              @if (recipe.imageUrl | recipeImage; as src) { <img class="card-image" [src]="src" alt="" loading="lazy" /> }
               <p class="eyebrow">{{ i18n.t('drafts.needsReview') }}</p>
               <h2>{{ recipe.name }}</h2>
               <p class="description">{{ recipe.description || i18n.t('drafts.noDescription') }}</p>

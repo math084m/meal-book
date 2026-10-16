@@ -20,6 +20,9 @@ public sealed class Recipe
     public bool IsPublished { get; private set; }
     public string? SourceUrl { get; private set; }
     public string Language { get; private set; } = "en";
+
+    // Set when a cover image is stored; doubles as the cache-busting version of the image URL.
+    public DateTimeOffset? ImageUpdatedAt { get; private set; }
     public List<RecipeIngredient> Ingredients { get; private set; } = [];
     public List<RecipeStep> Steps { get; private set; } = [];
     public List<RecipeEquipment> Equipment { get; private set; } = [];
@@ -29,6 +32,8 @@ public sealed class Recipe
         Terms.Where(term => term.Kind == kind).Select(term => term.Slug).OrderBy(slug => slug);
 
     public void Publish() => IsPublished = true;
+
+    public void SetImage(DateTimeOffset? updatedAt) => ImageUpdatedAt = updatedAt;
 
     public static Recipe Create(
         string name,

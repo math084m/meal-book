@@ -34,6 +34,13 @@ public interface IRecipeService
 
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<RecipeImageResult> SetImageAsync(Guid id, Stream content, CancellationToken cancellationToken);
+
+    // Drafts are only returned when includeDrafts is true; returns null when there is no visible image.
+    Task<StoredImage?> GetImageAsync(Guid id, bool includeDrafts, CancellationToken cancellationToken);
+
+    Task<bool> DeleteImageAsync(Guid id, CancellationToken cancellationToken);
+
     Task<RecipeCookedResponse?> LogCookedAsync(
         Guid recipeId,
         string userId,

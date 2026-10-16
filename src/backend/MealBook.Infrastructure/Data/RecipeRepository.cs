@@ -114,7 +114,9 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
             return false;
         }
 
+        var imageUpdatedAt = existing.ImageUpdatedAt;
         db.Entry(existing).CurrentValues.SetValues(recipe);
+        existing.SetImage(imageUpdatedAt);
         ReplaceChildren(existing.Ingredients, recipe.Ingredients);
         ReplaceChildren(existing.Steps, recipe.Steps);
         ReplaceChildren(existing.Equipment, recipe.Equipment);
@@ -179,6 +181,26 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         }
 
         recipe.Publish();
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<RecipeImageInfo?> GetImageInfoAsync(Guid id, CancellationToken cancellationToken) =>
+        await db.Recipes
+            .AsNoTracking()
+            .Where(item => item.Id == id)
+            .Select(item => new RecipeImageInfo(item.IsPublished, item.ImageUpdatedAt))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> SetImageAsync(Guid id, DateTimeOffset? updatedAt, CancellationToken cancellationToken)
+    {
+        var recipe = await db.Recipes.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (recipe is null)
+        {
+            return false;
+        }
+
+        recipe.SetImage(updatedAt);
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }

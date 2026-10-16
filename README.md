@@ -128,6 +128,24 @@ API key (a `:fx` key uses the free endpoint) as a Fly secret, and locally via
 fly secrets set DeepL__ApiKey="your-key" -a meal-book
 ```
 
+## Recipe cover images
+
+Admins upload one cover image per recipe on the recipe form. The browser resizes
+it to at most 1600 px JPEG; the API accepts JPEG, PNG or WebP up to 3 MB and
+stores it in an S3-compatible bucket (Fly Tigris). Endpoints:
+`POST|GET|DELETE /api/recipes/{id}/image` (upload and delete need Admin; drafts'
+images are only served to admins).
+
+Without bucket settings uploads return 503 and everything else works. On Fly:
+
+```powershell
+fly storage create -a meal-book
+```
+
+This sets `BUCKET_NAME`, `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` as secrets. For local development set the same
+variables (any S3-compatible store, e.g. MinIO) as environment variables.
+
 ## AI-assisted recipe imports
 
 Playwright is free browser automation, not an AI recipe extractor. Keep browser

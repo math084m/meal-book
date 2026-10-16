@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { RecipeApiService, RecipeIngredient, RecipeWrite } from './recipe-api.service';
+import { RecipeApiService, RecipeIngredient, RecipeWrite, apiUrl } from './recipe-api.service';
+import { resizeImage } from './image-resize';
 import { I18nService, TranslationKey, languages } from './i18n.service';
 import { CatalogService } from './catalog.service';
 import { SelectFieldComponent } from './select-field.component';
@@ -45,6 +46,16 @@ import { SelectFieldComponent } from './select-field.component';
             <input name="isPublished" type="checkbox" [(ngModel)]="model.isPublished" />
             {{ i18n.t('form.publish') }}
           </label>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2>{{ i18n.t('form.image') }}</h2>
+        <div class="image-editor">
+          @if (previewUrl(); as src) { <img [src]="src" alt="" /> }
+          <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onImageChosen($event)" [attr.aria-label]="i18n.t('form.image')" />
+          <span class="field-hint">{{ i18n.t('form.imageHint') }}</span>
+          @if (previewUrl()) { <button class="remove-button" type="button" (click)="removeImage()">{{ i18n.t('form.imageRemove') }}</button> }
         </div>
       </section>
 
@@ -128,6 +139,9 @@ export class AdminRecipeFormComponent implements OnInit {
   readonly languages = languages;
   readonly error = signal<TranslationKey | null>(null);
   readonly saving = signal(false);
+  readonly previewUrl = signal<string | null>(null);
+  private pendingImage: Blob | null = null;
+  private hadImage = false;
   readonly recipeId = this.route.snapshot.paramMap.get('id');
   readonly units = ['g', 'kg', 'mg', 'ml', 'cl', 'dl', 'l', 'tsp', 'tbsp', 'piece', 'clove', 'can', 'package', 'pinch', 'handful', 'slice', 'bunch', 'cup'];
   readonly otherUnit = '__other__';
@@ -160,6 +174,8 @@ export class AdminRecipeFormComponent implements OnInit {
     if (!this.recipeId) return;
     this.api.getRecipe(this.recipeId, true).subscribe({
       next: recipe => {
+        this.hadImage = !!recipe.imageUrl;
+        this.previewUrl.set(recipe.imageUrl ? `${apiUrl}${recipe.imageUrl}` : null);
         const sections = new Map<string, IngredientSection>();
         for (const ingredient of recipe.ingredients) {
           const name = ingredient.section?.trim() || 'Ingredients';
@@ -250,6 +266,44 @@ export class AdminRecipeFormComponent implements OnInit {
     }
   }
 
+  async onImageChosen(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      this.pendingImage = await resizeImage(file);
+      this.previewUrl.set(URL.createObjectURL(this.pendingImage));
+      this.error.set(null);
+    } catch {
+      this.error.set('form.imageFailed');
+    }
+    input.value = '';
+  }
+
+  removeImage(): void {
+    this.pendingImage = null;
+    this.previewUrl.set(null);
+  }
+
+  private finishSave(recipeId: string): void {
+    const done = () => {
+      this.saving.set(false);
+      void this.router.navigate(['/recipes', recipeId]);
+    };
+    const failed = () => {
+      this.saving.set(false);
+      this.error.set('form.imageFailed');
+      void this.router.navigate(['/admin/recipes', recipeId, 'edit']);
+    };
+    if (this.pendingImage) {
+      this.api.uploadImage(recipeId, this.pendingImage).subscribe({ next: done, error: failed });
+    } else if (this.hadImage && !this.previewUrl()) {
+      this.api.deleteImage(recipeId).subscribe({ next: done, error: failed });
+    } else {
+      done();
+    }
+  }
+
   save(): void {
     this.error.set(null);
     if (this.ingredientSections.some(section => section.ingredients.some(item => !item.ingredientId))) {
@@ -264,10 +318,7 @@ export class AdminRecipeFormComponent implements OnInit {
       ? this.api.updateRecipe(this.recipeId, this.model)
       : this.api.createRecipe(this.model);
     request.subscribe({
-      next: recipe => {
-        this.saving.set(false);
-        void this.router.navigate(['/recipes', recipe.id]);
-      },
+      next: recipe => this.finishSave(recipe.id),
       error: () => {
         this.saving.set(false);
         this.error.set('form.saveFailed');

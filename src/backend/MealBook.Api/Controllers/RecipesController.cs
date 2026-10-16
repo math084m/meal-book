@@ -10,6 +10,7 @@ namespace MealBook.Api.Controllers;
 [RecipeValidationFilter]
 public sealed class RecipesController(IRecipeService recipes) : ControllerBase
 {
+    private const int MaxImageBytes = 3 * 1024 * 1024;
     [HttpGet("suggestions")]
     [AllowAnonymous]
     [ProducesResponseType<IReadOnlyList<RecipeSuggestionResponse>>(StatusCodes.Status200OK)]
@@ -119,6 +120,61 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
         await recipes.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
+
+    [HttpPost("{id:guid}/image")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(MaxImageBytes)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> UploadImage(
+        Guid id,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file.Length is 0 or > MaxImageBytes)
+        {
+            return BadRequest(new ProblemDetails { Title = "Image must be between 1 byte and 3 MB." });
+        }
+
+        await using var stream = file.OpenReadStream();
+        return await recipes.SetImageAsync(id, stream, cancellationToken) switch
+        {
+            RecipeImageResult.Saved => Ok(),
+            RecipeImageResult.NotFound => NotFound(),
+            RecipeImageResult.StorageUnavailable => StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new ProblemDetails { Title = "Image storage is not configured." }),
+            _ => BadRequest(new ProblemDetails { Title = "Only JPEG, PNG or WebP images are accepted." })
+        };
+    }
+
+    [HttpGet("{id:guid}/image")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetImage(Guid id, CancellationToken cancellationToken)
+    {
+        var image = await recipes.GetImageAsync(id, User.IsInRole("Admin"), cancellationToken);
+        if (image is null)
+        {
+            return NotFound();
+        }
+
+        // The URL carries a version, so browsers can cache it for a long time.
+        Response.Headers.CacheControl = User.IsInRole("Admin")
+            ? "private, max-age=60"
+            : "public, max-age=31536000, immutable";
+        return File(image.Content, image.ContentType);
+    }
+
+    [HttpDelete("{id:guid}/image")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteImage(Guid id, CancellationToken cancellationToken) =>
+        await recipes.DeleteImageAsync(id, cancellationToken) ? NoContent() : NotFound();
 
     [HttpPost("{id:guid}/cooked")]
     [Authorize]

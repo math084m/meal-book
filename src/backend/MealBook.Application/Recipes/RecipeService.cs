@@ -8,6 +8,7 @@ public sealed class RecipeService(
     IRecipeRepository repository,
     ICatalogRepository catalog,
     ITranslator translator,
+    IImageStorage imageStorage,
     ILogger<RecipeService> logger) : IRecipeService
 {
     public async Task<IReadOnlyList<RecipeSuggestionResponse>> GetSuggestionsAsync(
@@ -151,8 +152,114 @@ public sealed class RecipeService(
         return await GetByIdAsync(id, null, cancellationToken);
     }
 
-    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken) =>
-        repository.DeleteAsync(id, cancellationToken);
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await repository.DeleteAsync(id, cancellationToken))
+        {
+            return false;
+        }
+
+        if (imageStorage.IsConfigured)
+        {
+            try
+            {
+                await imageStorage.DeleteAsync(ImageKey(id), cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogWarning(exception, "Could not delete the image of recipe {RecipeId}.", id);
+            }
+        }
+
+        return true;
+    }
+
+    public async Task<RecipeImageResult> SetImageAsync(
+        Guid id,
+        Stream content,
+        CancellationToken cancellationToken)
+    {
+        if (!imageStorage.IsConfigured)
+        {
+            return RecipeImageResult.StorageUnavailable;
+        }
+
+        if (await repository.GetImageInfoAsync(id, cancellationToken) is null)
+        {
+            return RecipeImageResult.NotFound;
+        }
+
+        var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, cancellationToken);
+        var contentType = DetectImageType(buffer);
+        if (contentType is null)
+        {
+            return RecipeImageResult.Invalid;
+        }
+
+        buffer.Position = 0;
+        await imageStorage.PutAsync(ImageKey(id), buffer, contentType, cancellationToken);
+        await repository.SetImageAsync(id, DateTimeOffset.UtcNow, cancellationToken);
+        return RecipeImageResult.Saved;
+    }
+
+    public async Task<StoredImage?> GetImageAsync(Guid id, bool includeDrafts, CancellationToken cancellationToken)
+    {
+        if (!imageStorage.IsConfigured)
+        {
+            return null;
+        }
+
+        var info = await repository.GetImageInfoAsync(id, cancellationToken);
+        if (info is null || info.ImageUpdatedAt is null || (!info.IsPublished && !includeDrafts))
+        {
+            return null;
+        }
+
+        return await imageStorage.GetAsync(ImageKey(id), cancellationToken);
+    }
+
+    public async Task<bool> DeleteImageAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (await repository.GetImageInfoAsync(id, cancellationToken) is null)
+        {
+            return false;
+        }
+
+        if (imageStorage.IsConfigured)
+        {
+            await imageStorage.DeleteAsync(ImageKey(id), cancellationToken);
+        }
+
+        await repository.SetImageAsync(id, null, cancellationToken);
+        return true;
+    }
+
+    private static string ImageKey(Guid id) => $"recipes/{id}";
+
+    // Only real JPEG, PNG and WebP files are accepted; the type is taken from the bytes, not the client.
+    private static string? DetectImageType(MemoryStream stream)
+    {
+        var bytes = stream.GetBuffer().AsSpan(0, (int)stream.Length);
+        if (bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+        {
+            return "image/jpeg";
+        }
+
+        if (bytes.Length >= 8 && bytes[..8].SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }))
+        {
+            return "image/png";
+        }
+
+        if (bytes.Length >= 12
+            && bytes[..4].SequenceEqual("RIFF"u8)
+            && bytes[8..12].SequenceEqual("WEBP"u8))
+        {
+            return "image/webp";
+        }
+
+        return null;
+    }
 
     public Task<RecipeCookedResponse?> LogCookedAsync(
         Guid recipeId,
@@ -369,7 +476,10 @@ public sealed class RecipeService(
                 ?? recipe.Equipment.OrderBy(item => item.Position).Select(item => item.Name).ToList(),
             recipe.Language,
             displayLanguage,
-            content is not null);
+            content is not null,
+            recipe.ImageUpdatedAt is { } imageUpdatedAt
+                ? $"recipes/{recipe.Id}/image?v={imageUpdatedAt.ToUnixTimeMilliseconds()}"
+                : null);
     }
 
     // A stored translation is only used while it still matches the current recipe text.

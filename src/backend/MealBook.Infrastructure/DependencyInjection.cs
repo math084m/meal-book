@@ -28,6 +28,7 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddScoped<IRecipeRepository, RecipeRepository>();
+        services.AddSingleton<IImageStorage, MealBook.Infrastructure.Storage.S3ImageStorage>();
         services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<IDatabaseHealth, DatabaseHealth>();
         services.AddScoped<AdminUserSeeder>();

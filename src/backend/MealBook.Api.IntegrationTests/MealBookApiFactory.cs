@@ -22,7 +22,34 @@ public sealed class MealBookApiFactory(string connectionString) : WebApplication
         {
             services.RemoveAll<ITranslator>();
             services.AddSingleton<ITranslator, FakeTranslator>();
+            services.RemoveAll<IImageStorage>();
+            services.AddSingleton<IImageStorage, FakeImageStorage>();
         });
+    }
+}
+
+public sealed class FakeImageStorage : IImageStorage
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (byte[] Bytes, string Type)> items = new();
+
+    public bool IsConfigured => true;
+
+    public async Task PutAsync(string key, Stream content, string contentType, CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, cancellationToken);
+        items[key] = (buffer.ToArray(), contentType);
+    }
+
+    public Task<StoredImage?> GetAsync(string key, CancellationToken cancellationToken) =>
+        Task.FromResult<StoredImage?>(items.TryGetValue(key, out var item)
+            ? new StoredImage(new MemoryStream(item.Bytes), item.Type)
+            : null);
+
+    public Task DeleteAsync(string key, CancellationToken cancellationToken)
+    {
+        items.TryRemove(key, out _);
+        return Task.CompletedTask;
     }
 }
 

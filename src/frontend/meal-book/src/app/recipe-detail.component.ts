@@ -5,16 +5,18 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService, TranslationKey } from './i18n.service';
 import { Recipe, RecipeApiService } from './recipe-api.service';
+import { RecipeImagePipe } from './recipe-image.pipe';
 import { CatalogService } from './catalog.service';
 import { formatAmount } from './servings-scaling';
 
 @Component({
   standalone: true,
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, RecipeImagePipe],
   template: `
     @if (recipe(); as item) {
       <a class="back-link" routerLink="/recipes">{{ i18n.t('common.backToRecipes') }}</a>
       <section class="recipe-detail-heading">
+        @if (item.imageUrl | recipeImage; as src) { <img class="hero-image" [src]="src" [alt]="item.name" /> }
         <p class="eyebrow">{{ catalog.label('cuisine', item.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('mealType', item.mealTypes[0] ?? '') || i18n.t('common.anyMeal') }} · {{ catalog.label('course', item.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>
         <h1>{{ item.name }}</h1>
         @if (item.isTranslated) {

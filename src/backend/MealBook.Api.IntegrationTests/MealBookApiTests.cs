@@ -381,6 +381,54 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task RecipeImage_UploadServeAndDelete_RespectsDraftsAndValidation()
+    {
+        using var importClient = fixture.Factory.CreateClient();
+        using var imported = await ImportAsync(importClient, ImportRecipe($"Image recipe {Guid.NewGuid():N}"));
+        var recipeId = (await ReadJsonAsync(imported)).GetProperty("id").GetGuid();
+        using var anonymous = fixture.Factory.CreateClient();
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+
+        static MultipartFormDataContent Upload(byte[] bytes)
+        {
+            var file = new ByteArrayContent(bytes);
+            file.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            return new MultipartFormDataContent { { file, "file", "cover.jpg" } };
+        }
+
+        using var denied = await anonymous.PostAsync($"/api/recipes/{recipeId}/image", Upload([0xFF, 0xD8, 0xFF, 1]));
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        using var notImage = await admin.PostAsync($"/api/recipes/{recipeId}/image", Upload([1, 2, 3, 4]));
+        Assert.Equal(HttpStatusCode.BadRequest, notImage.StatusCode);
+
+        using var saved = await admin.PostAsync($"/api/recipes/{recipeId}/image", Upload([0xFF, 0xD8, 0xFF, 1, 2]));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        var recipe = await ReadJsonAsync(await admin.GetAsync($"/api/recipes/{recipeId}"));
+        Assert.StartsWith($"recipes/{recipeId}/image?v=", recipe.GetProperty("imageUrl").GetString());
+
+        using var draftHidden = await anonymous.GetAsync($"/api/recipes/{recipeId}/image");
+        Assert.Equal(HttpStatusCode.NotFound, draftHidden.StatusCode);
+        using var draftAdmin = await admin.GetAsync($"/api/recipes/{recipeId}/image");
+        Assert.Equal(HttpStatusCode.OK, draftAdmin.StatusCode);
+        Assert.Equal("image/jpeg", draftAdmin.Content.Headers.ContentType?.MediaType);
+
+        (await admin.PostAsync($"/api/recipes/{recipeId}/publish", null)).Dispose();
+        using var visible = await anonymous.GetAsync($"/api/recipes/{recipeId}/image");
+        Assert.Equal(HttpStatusCode.OK, visible.StatusCode);
+        Assert.Equal(5, (await visible.Content.ReadAsByteArrayAsync()).Length);
+
+        using var removed = await admin.DeleteAsync($"/api/recipes/{recipeId}/image");
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        using var gone = await anonymous.GetAsync($"/api/recipes/{recipeId}/image");
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+        var after = await ReadJsonAsync(await admin.GetAsync($"/api/recipes/{recipeId}"));
+        Assert.Equal(JsonValueKind.Null, after.GetProperty("imageUrl").ValueKind);
+    }
+
+    [Fact]
     public async Task RecipeEndpoints_RequireAdminForDraftListing()
     {
         using var client = fixture.Factory.CreateClient();

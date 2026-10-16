@@ -40,6 +40,7 @@ export interface Recipe {
   language: string;
   displayLanguage: string;
   isTranslated: boolean;
+  imageUrl?: string | null;
 }
 
 export interface RecipeSearch {
@@ -101,7 +102,7 @@ export interface RecipeWrite {
   equipment: string[];
 }
 
-const apiUrl = new URL('api/', document.baseURI).toString();
+export const apiUrl = new URL('api/', document.baseURI).toString();
 
 @Injectable({ providedIn: 'root' })
 export class RecipeApiService {
@@ -162,6 +163,16 @@ export class RecipeApiService {
 
   deleteRecipe(id: string): Observable<void> {
     return this.http.delete<void>(`${apiUrl}recipes/${id}`);
+  }
+
+  uploadImage(id: string, file: Blob): Observable<void> {
+    const form = new FormData();
+    form.append('file', file, 'cover.jpg');
+    return this.http.post<void>(`${apiUrl}recipes/${id}/image`, form);
+  }
+
+  deleteImage(id: string): Observable<void> {
+    return this.http.delete<void>(`${apiUrl}recipes/${id}/image`);
   }
 
   private toParams(search: RecipeSearch): HttpParams {

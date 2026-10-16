@@ -35,7 +35,18 @@ public sealed record RecipeResponse(
     IReadOnlyList<string> Equipment,
     string Language = "en",
     string DisplayLanguage = "en",
-    bool IsTranslated = false);
+    bool IsTranslated = false,
+    string? ImageUrl = null);
+
+public enum RecipeImageResult
+{
+    Saved,
+    NotFound,
+    Invalid,
+    StorageUnavailable
+}
+
+public sealed record RecipeImageInfo(bool IsPublished, DateTimeOffset? ImageUpdatedAt);
 
 public sealed class CreateRecipeRequest : RecipeWriteRequest
 {
