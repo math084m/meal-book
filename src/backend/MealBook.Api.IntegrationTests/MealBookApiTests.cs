@@ -193,6 +193,21 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task LoginToken_IsAcceptedByAnotherInstanceSharingTheDatabase()
+    {
+        using var machineA = fixture.CreateSecondInstance();
+        using var machineB = fixture.CreateSecondInstance();
+        using var clientA = machineA.CreateClient();
+        await SignInAdminAsync(clientA);
+
+        using var clientB = machineB.CreateClient();
+        clientB.DefaultRequestHeaders.Authorization = clientA.DefaultRequestHeaders.Authorization;
+        using var response = await clientB.GetAsync("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task RecipeEndpoints_RequireAdminForDraftListing()
     {
         using var client = fixture.Factory.CreateClient();

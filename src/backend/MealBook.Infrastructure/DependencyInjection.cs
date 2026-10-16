@@ -1,5 +1,6 @@
 using MealBook.Application.Recipes;
 using MealBook.Infrastructure.Data;
+using Microsoft.AspNetCore.DataProtection;
 using Migr8;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +18,9 @@ public static class DependencyInjection
         var connectionString = GetDatabaseConnectionString(configuration);
 
         services.AddDbContext<RecipeDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDataProtection()
+            .SetApplicationName("MealBook")
+            .PersistKeysToDbContext<RecipeDbContext>();
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IDatabaseHealth, DatabaseHealth>();
         services.AddScoped<AdminUserSeeder>();

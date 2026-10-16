@@ -1,4 +1,5 @@
 using MealBook.Domain.Recipes;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,11 @@ public sealed class AppUser : IdentityUser
 }
 
 public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
-    : IdentityDbContext<AppUser, IdentityRole, string>(options)
+    : IdentityDbContext<AppUser, IdentityRole, string>(options), IDataProtectionKeyContext
 {
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipeCookLog> RecipeCookLogs => Set<RecipeCookLog>();
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
