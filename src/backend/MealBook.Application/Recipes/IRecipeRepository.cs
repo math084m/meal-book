@@ -16,6 +16,13 @@ public interface IRecipeRepository
 
     Task<bool> UpdateAsync(Recipe recipe, CancellationToken cancellationToken);
 
+    Task<IReadOnlyDictionary<Guid, RecipeTranslation>> GetTranslationsAsync(
+        IReadOnlyCollection<Guid> recipeIds,
+        string language,
+        CancellationToken cancellationToken);
+
+    Task SaveTranslationAsync(RecipeTranslation translation, CancellationToken cancellationToken);
+
     Task<bool> PublishAsync(Guid id, CancellationToken cancellationToken);
 
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);

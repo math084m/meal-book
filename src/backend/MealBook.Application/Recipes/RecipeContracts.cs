@@ -31,7 +31,10 @@ public sealed record RecipeResponse(
     IReadOnlyList<string> Tags,
     IReadOnlyList<RecipeIngredientResponse> Ingredients,
     IReadOnlyList<string> Steps,
-    IReadOnlyList<string> Equipment);
+    IReadOnlyList<string> Equipment,
+    string Language = "en",
+    string DisplayLanguage = "en",
+    bool IsTranslated = false);
 
 public sealed class CreateRecipeRequest : RecipeWriteRequest
 {
@@ -87,6 +90,9 @@ public abstract class RecipeWriteRequest
 
     [System.ComponentModel.DataAnnotations.StringLength(2048)]
     public string? SourceUrl { get; init; }
+
+    [System.ComponentModel.DataAnnotations.RegularExpression("^(en|da)$")]
+    public string Language { get; init; } = "en";
 
     [StringItems(80)]
     [System.ComponentModel.DataAnnotations.MaxLength(30)]
@@ -151,6 +157,7 @@ public sealed class RecipeSearchRequest
     public int? MaxCalories { get; init; }
     public double? MinRating { get; init; }
     public string Sort { get; init; } = "newest";
+    public string? Lang { get; init; }
 }
 
 public sealed record RecipeCookedResponse(

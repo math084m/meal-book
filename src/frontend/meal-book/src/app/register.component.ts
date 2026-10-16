@@ -2,41 +2,43 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
+import { I18nService } from './i18n.service';
 
 @Component({
   standalone: true,
   imports: [FormsModule, RouterLink],
   template: `
     <section class="auth-card">
-      <p class="eyebrow">MAKE IT YOURS</p>
-      <h1>Start your recipe book.</h1>
-      <p class="muted">Create a free account to log meals cooked and rate recipes.</p>
+      <p class="eyebrow">{{ i18n.t('auth.register.eyebrow') }}</p>
+      <h1>{{ i18n.t('auth.register.title') }}</h1>
+      <p class="muted">{{ i18n.t('auth.register.text') }}</p>
       <form (ngSubmit)="submit()">
-        <label>Email
+        <label>{{ i18n.t('auth.email') }}
           <input name="email" type="email" [(ngModel)]="email" required autocomplete="email" />
         </label>
-        <label>Password
+        <label>{{ i18n.t('auth.password') }}
           <input name="password" type="password" [(ngModel)]="password" required minlength="10" autocomplete="new-password" />
-          <span class="field-hint">At least 10 characters, with uppercase, lowercase, and a number.</span>
+          <span class="field-hint">{{ i18n.t('auth.register.hint') }}</span>
         </label>
-        @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
-        <button class="button" type="submit" [disabled]="busy()">Create account</button>
+        @if (error()) { <p class="error-message" role="alert">{{ i18n.t('auth.register.failed') }}</p> }
+        <button class="button" type="submit" [disabled]="busy()">{{ i18n.t('auth.register.submit') }}</button>
       </form>
-      <p class="auth-switch">Already have an account? <a routerLink="/login">Sign in</a></p>
+      <p class="auth-switch">{{ i18n.t('auth.register.existing') }} <a routerLink="/login">{{ i18n.t('nav.signIn') }}</a></p>
     </section>
   `
 })
 export class RegisterComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  readonly i18n = inject(I18nService);
   email = '';
   password = '';
-  readonly error = signal('');
+  readonly error = signal(false);
   readonly busy = signal(false);
 
   submit(): void {
     this.busy.set(true);
-    this.error.set('');
+    this.error.set(false);
     this.auth.register(this.email, this.password).subscribe({
       next: () => {
         this.busy.set(false);
@@ -44,7 +46,7 @@ export class RegisterComponent {
       },
       error: () => {
         this.busy.set(false);
-        this.error.set('Could not create account. Email may already be registered or password may not meet requirements.');
+        this.error.set(true);
       }
     });
   }

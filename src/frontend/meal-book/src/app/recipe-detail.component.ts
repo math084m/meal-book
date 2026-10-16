@@ -1,8 +1,9 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
+import { I18nService, TranslationKey } from './i18n.service';
 import { Recipe, RecipeApiService } from './recipe-api.service';
 
 @Component({
@@ -10,17 +11,20 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
   imports: [DatePipe, DecimalPipe, FormsModule, RouterLink],
   template: `
     @if (recipe(); as item) {
-      <a class="back-link" routerLink="/recipes">← All recipes</a>
+      <a class="back-link" routerLink="/recipes">{{ i18n.t('common.backToRecipes') }}</a>
       <section class="recipe-detail-heading">
-        <p class="eyebrow">{{ item.cuisine || 'RECIPE' }} · {{ item.mealType || 'ANY MEAL' }} · {{ item.course || 'ANY COURSE' }}</p>
+        <p class="eyebrow">{{ item.cuisine || i18n.t('common.recipeFallback') }} · {{ item.mealType || i18n.t('common.anyMeal') }} · {{ item.course || i18n.t('common.anyCourse') }}</p>
         <h1>{{ item.name }}</h1>
+        @if (item.isTranslated) {
+          <p class="translation-badge">{{ i18n.t('detail.translated', { language: i18n.languageName(item.language) }) }}</p>
+        }
         <p class="intro">{{ item.description }}</p>
         <div class="detail-facts">
-          <span>{{ item.prepTimeMinutes + item.cookTimeMinutes }} min total</span>
-          <span>{{ item.prepTimeMinutes }} min prep</span>
-          <span>{{ item.cookTimeMinutes }} min cook</span>
-          <span>{{ item.servings }} servings</span>
-          @if (item.cookCount) { <span>{{ item.cookCount }} cooks</span> }
+          <span>{{ i18n.t('detail.minTotal', { n: item.prepTimeMinutes + item.cookTimeMinutes }) }}</span>
+          <span>{{ i18n.t('detail.minPrep', { n: item.prepTimeMinutes }) }}</span>
+          <span>{{ i18n.t('detail.minCook', { n: item.cookTimeMinutes }) }}</span>
+          <span>{{ i18n.t('common.servings', { n: item.servings }) }}</span>
+          @if (item.cookCount) { <span>{{ i18n.t('common.cooks', { n: item.cookCount }) }}</span> }
           @if (item.averageRating) { <span>★ {{ item.averageRating | number:'1.1-1' }}</span> }
         </div>
         <div class="tag-list">
@@ -28,8 +32,8 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
         </div>
         @if (auth.currentUser()?.isAdmin) {
           <div class="admin-actions">
-            <a class="button secondary" [routerLink]="['/admin/recipes', item.id, 'edit']">Edit recipe</a>
-            <button class="button danger" type="button" (click)="deleteRecipe()">Delete</button>
+            <a class="button secondary" [routerLink]="['/admin/recipes', item.id, 'edit']">{{ i18n.t('detail.edit') }}</a>
+            <button class="button danger" type="button" (click)="deleteRecipe()">{{ i18n.t('detail.delete') }}</button>
           </div>
         }
       </section>
@@ -37,8 +41,8 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
       <div class="detail-columns">
         <aside>
           <section class="detail-card">
-            <p class="eyebrow">WHAT YOU NEED</p>
-            <h2>Ingredients</h2>
+            <p class="eyebrow">{{ i18n.t('detail.needs') }}</p>
+            <h2>{{ i18n.t('detail.ingredients') }}</h2>
             @for (group of ingredientGroups(item.ingredients); track group.key) {
               @if (group.section) { <h3 class="ingredient-section-title">{{ group.section }}</h3> }
               <ul class="ingredient-list">
@@ -50,23 +54,23 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
               </ul>
             }
             @if (item.equipment.length) {
-              <h3>Equipment</h3>
+              <h3>{{ i18n.t('detail.equipment') }}</h3>
               <ul class="plain-list">@for (tool of item.equipment; track tool) { <li>{{ tool }}</li> }</ul>
             }
             @if (item.caloriesPerServing || item.proteinGramsPerServing || item.carbohydratesGramsPerServing || item.fatGramsPerServing) {
-              <h3>Nutrition per serving</h3>
+              <h3>{{ i18n.t('detail.nutrition') }}</h3>
               <p class="muted">
-                @if (item.caloriesPerServing) { {{ item.caloriesPerServing }} kcal }
-                @if (item.proteinGramsPerServing) { · {{ item.proteinGramsPerServing }}g protein }
-                @if (item.carbohydratesGramsPerServing) { · {{ item.carbohydratesGramsPerServing }}g carbs }
-                @if (item.fatGramsPerServing) { · {{ item.fatGramsPerServing }}g fat }
+                @if (item.caloriesPerServing) { {{ i18n.t('detail.kcal', { n: item.caloriesPerServing }) }} }
+                @if (item.proteinGramsPerServing) { · {{ i18n.t('detail.protein', { n: item.proteinGramsPerServing }) }} }
+                @if (item.carbohydratesGramsPerServing) { · {{ i18n.t('detail.carbs', { n: item.carbohydratesGramsPerServing }) }} }
+                @if (item.fatGramsPerServing) { · {{ i18n.t('detail.fat', { n: item.fatGramsPerServing }) }} }
               </p>
             }
           </section>
         </aside>
         <section class="detail-card instructions">
-          <p class="eyebrow">LET'S GET COOKING</p>
-          <h2>Method</h2>
+          <p class="eyebrow">{{ i18n.t('detail.cooking') }}</p>
+          <h2>{{ i18n.t('detail.method') }}</h2>
           <ol class="steps-list">
             @for (step of item.steps; track $index) {
               <li><span class="step-number">{{ $index + 1 }}</span><p>{{ step }}</p></li>
@@ -77,53 +81,61 @@ import { Recipe, RecipeApiService } from './recipe-api.service';
 
       @if (auth.currentUser()) {
         <section class="cook-panel">
-          <div><p class="eyebrow">MADE THIS?</p><h2>Log your cook</h2><p class="muted">Your rating helps surface community favorites.</p></div>
+          <div><p class="eyebrow">{{ i18n.t('detail.madeThis') }}</p><h2>{{ i18n.t('detail.logCook') }}</h2><p class="muted">{{ i18n.t('detail.logCookHelp') }}</p></div>
           <form (ngSubmit)="logCooked()">
-            <label>Rating
+            <label>{{ i18n.t('detail.rating') }}
               <select name="rating" [(ngModel)]="rating">
-                <option [ngValue]="null">Skip rating</option>
-                <option [ngValue]="5">5 — loved it</option>
-                <option [ngValue]="4">4 — very good</option>
-                <option [ngValue]="3">3 — good</option>
-                <option [ngValue]="2">2 — needs work</option>
-                <option [ngValue]="1">1 — not for me</option>
+                <option [ngValue]="null">{{ i18n.t('detail.rating.skip') }}</option>
+                <option [ngValue]="5">{{ i18n.t('detail.rating.5') }}</option>
+                <option [ngValue]="4">{{ i18n.t('detail.rating.4') }}</option>
+                <option [ngValue]="3">{{ i18n.t('detail.rating.3') }}</option>
+                <option [ngValue]="2">{{ i18n.t('detail.rating.2') }}</option>
+                <option [ngValue]="1">{{ i18n.t('detail.rating.1') }}</option>
               </select>
             </label>
-            <label>Notes
-              <input name="notes" [(ngModel)]="notes" maxlength="1000" placeholder="What would you change next time?" />
+            <label>{{ i18n.t('detail.notes') }}
+              <input name="notes" [(ngModel)]="notes" maxlength="1000" [placeholder]="i18n.t('detail.notes.placeholder')" />
             </label>
-            <button class="button" type="submit" [disabled]="saving()">I cooked this</button>
+            <button class="button" type="submit" [disabled]="saving()">{{ i18n.t('detail.cooked') }}</button>
           </form>
-          @if (message()) { <p class="success-message" role="status">{{ message() }}</p> }
-          @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
+          @if (message()) { <p class="success-message" role="status">{{ i18n.t(message()!) }}</p> }
+          @if (error()) { <p class="error-message" role="alert">{{ i18n.t(error()!) }}</p> }
         </section>
       } @else {
-        <p class="muted sign-in-note"><a routerLink="/login">Sign in</a> to log a cook and rate this recipe.</p>
+        <p class="muted sign-in-note"><a routerLink="/login">{{ i18n.t('detail.signInLink') }}</a>{{ i18n.t('detail.signInNote.after') }}</p>
       }
-      <p class="muted added-date">Added {{ item.addedAt | date:'longDate' }}</p>
+      <p class="muted added-date">{{ i18n.t('detail.added', { date: (item.addedAt | date:'longDate') ?? '' }) }}</p>
     } @else if (error()) {
-      <div class="state-card" role="alert">{{ error() }}</div>
+      <div class="state-card" role="alert">{{ i18n.t(error()!) }}</div>
     } @else {
-      <div class="state-card" role="status">Loading recipe…</div>
+      <div class="state-card" role="status">{{ i18n.t('detail.loading') }}</div>
     }
   `
 })
-export class RecipeDetailComponent implements OnInit {
+export class RecipeDetailComponent {
   private readonly api = inject(RecipeApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
+  readonly i18n = inject(I18nService);
   readonly recipe = signal<Recipe | null>(null);
-  readonly error = signal('');
-  readonly message = signal('');
+  readonly error = signal<TranslationKey | null>(null);
+  readonly message = signal<TranslationKey | null>(null);
   readonly saving = signal(false);
   rating: number | null = null;
   notes = '';
 
+  constructor() {
+    effect(() => {
+      this.i18n.lang();
+      untracked(() => this.load());
+    });
+  }
+
   ingredientGroups(ingredients: Recipe['ingredients']): { key: string; section: string; ingredients: Recipe['ingredients'] }[] {
     const groups = new Map<string, { key: string; section: string; ingredients: Recipe['ingredients'] }>();
     for (const ingredient of ingredients) {
-      const section = ingredient.section?.trim() || 'Ingredients';
+      const section = ingredient.section?.trim() || this.i18n.t('detail.sectionDefault');
       const key = section.toLocaleLowerCase();
       const group = groups.get(key) ?? { key, section, ingredients: [] };
       group.ingredients.push(ingredient);
@@ -132,15 +144,18 @@ export class RecipeDetailComponent implements OnInit {
     return [...groups.values()];
   }
 
-  ngOnInit(): void {
+  private load(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
-      this.error.set('Recipe not found.');
+      this.error.set('detail.notFound');
       return;
     }
     this.api.getRecipe(id).subscribe({
-      next: value => this.recipe.set(value),
-      error: () => this.error.set('Recipe could not be found.')
+      next: value => {
+        this.recipe.set(value);
+        this.error.set(null);
+      },
+      error: () => this.error.set('detail.notFoundShort')
     });
   }
 
@@ -148,25 +163,25 @@ export class RecipeDetailComponent implements OnInit {
     const recipe = this.recipe();
     if (!recipe) return;
     this.saving.set(true);
-    this.error.set('');
+    this.error.set(null);
     this.api.logCooked(recipe.id, this.rating, this.notes).subscribe({
       next: () => {
         this.saving.set(false);
-        this.message.set('Cook added to your history. Thanks for rating!');
+        this.message.set('detail.cookSaved');
       },
       error: () => {
         this.saving.set(false);
-        this.error.set('Could not save cooking entry. Please try again.');
+        this.error.set('detail.cookFailed');
       }
     });
   }
 
   deleteRecipe(): void {
     const recipe = this.recipe();
-    if (!recipe || !window.confirm(`Delete "${recipe.name}"? This cannot be undone.`)) return;
+    if (!recipe || !window.confirm(this.i18n.t('detail.deleteConfirm', { name: recipe.name }))) return;
     this.api.deleteRecipe(recipe.id).subscribe({
       next: () => void this.router.navigate(['/recipes']),
-      error: () => this.error.set('Recipe could not be deleted.')
+      error: () => this.error.set('detail.deleteFailed')
     });
   }
 }

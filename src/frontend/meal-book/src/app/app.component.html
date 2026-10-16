@@ -1,23 +1,29 @@
 <div class="page-shell">
   <header class="topbar">
-    <a class="brand" routerLink="/" aria-label="Meal Book home">
+    <a class="brand" routerLink="/" [attr.aria-label]="i18n.t('brand.aria')">
       <span class="brand-mark" aria-hidden="true">M</span>
       <span>mealbook</span>
     </a>
-    <nav aria-label="Main navigation">
-      <a routerLink="/recipes" routerLinkActive="active">Recipes</a>
+    <nav [attr.aria-label]="i18n.t('nav.aria')">
+      <a routerLink="/recipes" routerLinkActive="active">{{ i18n.t('nav.recipes') }}</a>
       @if (auth.currentUser()) {
-        <a routerLink="/history" routerLinkActive="active">Cooking history</a>
+        <a routerLink="/history" routerLinkActive="active">{{ i18n.t('nav.history') }}</a>
         @if (auth.currentUser()?.isAdmin) {
-          <a routerLink="/admin/recipes/drafts">Review drafts</a>
-          <a routerLink="/admin/recipes/new">Add recipe</a>
+          <a routerLink="/admin/recipes/drafts">{{ i18n.t('nav.drafts') }}</a>
+          <a routerLink="/admin/recipes/new">{{ i18n.t('nav.add') }}</a>
         }
         <span class="nav-email">{{ auth.currentUser()?.email }}</span>
-        <button class="text-button" type="button" (click)="auth.logout()">Sign out</button>
+        <button class="text-button" type="button" (click)="auth.logout()">{{ i18n.t('nav.signOut') }}</button>
       } @else {
-        <a routerLink="/login">Sign in</a>
-        <a class="nav-signup" routerLink="/register">Join</a>
+        <a routerLink="/login">{{ i18n.t('nav.signIn') }}</a>
+        <a class="nav-signup" routerLink="/register">{{ i18n.t('nav.join') }}</a>
       }
+      <select class="lang-switch" [attr.aria-label]="i18n.t('lang.aria')" [value]="i18n.lang()" (change)="setLanguage($event)">
+        @for (item of languages; track item.code) {
+          <option [value]="item.code" [selected]="item.code === i18n.lang()">{{ item.label }}</option>
+        }
+      </select>
+      <button class="theme-toggle" type="button" (click)="themeService.toggle()" [attr.aria-label]="i18n.t(themeService.theme() === 'dark' ? 'theme.light' : 'theme.dark')" [title]="i18n.t(themeService.theme() === 'dark' ? 'theme.light' : 'theme.dark')">{{ themeService.theme() === 'dark' ? '☀' : '☾' }}</button>
     </nav>
   </header>
 
@@ -26,7 +32,7 @@
   </main>
 
   <footer>
-    <span>Made for the meals worth remembering.</span>
-    <span>Your kitchen, thoughtfully organized</span>
+    <span>{{ i18n.t('footer.left') }}</span>
+    <span>{{ i18n.t('footer.right') }}</span>
   </footer>
 </div>

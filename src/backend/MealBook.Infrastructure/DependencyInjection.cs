@@ -1,5 +1,6 @@
 using MealBook.Application.Recipes;
 using MealBook.Infrastructure.Data;
+using MealBook.Infrastructure.Translation;
 using Microsoft.AspNetCore.DataProtection;
 using Migr8;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,11 @@ public static class DependencyInjection
         services.AddDataProtection()
             .SetApplicationName("MealBook")
             .PersistKeysToDbContext<RecipeDbContext>();
+        services.AddHttpClient<ITranslator, DeepLTranslator>(client =>
+        {
+            client.BaseAddress = DeepLTranslator.GetBaseAddress(configuration["DeepL:ApiKey"]);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IDatabaseHealth, DatabaseHealth>();
         services.AddScoped<AdminUserSeeder>();

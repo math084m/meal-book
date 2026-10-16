@@ -21,15 +21,17 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
     [Authorize(Roles = "Admin")]
     [ProducesResponseType<IReadOnlyList<RecipeResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<RecipeResponse>>> GetDrafts(
+        [FromQuery] string? lang,
         CancellationToken cancellationToken) =>
-        Ok(await recipes.GetDraftsAsync(cancellationToken));
+        Ok(await recipes.GetDraftsAsync(lang, cancellationToken));
 
     [HttpGet("dashboard")]
     [AllowAnonymous]
     [ProducesResponseType<RecipeDashboardResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<RecipeDashboardResponse>> GetDashboard(
+        [FromQuery] string? lang,
         CancellationToken cancellationToken) =>
-        Ok(await recipes.GetDashboardAsync(cancellationToken));
+        Ok(await recipes.GetDashboardAsync(lang, cancellationToken));
 
     [HttpGet("cooking-history")]
     [Authorize]
@@ -52,9 +54,10 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<RecipeResponse>> Get(
         Guid id,
+        [FromQuery] string? lang,
         CancellationToken cancellationToken)
     {
-        var recipe = await recipes.GetByIdAsync(id, cancellationToken);
+        var recipe = await recipes.GetByIdAsync(id, lang, cancellationToken);
         if (recipe is { IsPublished: false } && !User.IsInRole("Admin"))
         {
             return NotFound();

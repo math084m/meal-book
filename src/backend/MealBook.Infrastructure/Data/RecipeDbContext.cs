@@ -51,6 +51,19 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .HasForeignKey(item => item.RecipeId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        recipe.Property(item => item.Language).HasMaxLength(2).IsRequired();
+
+        var translation = modelBuilder.Entity<RecipeTranslation>();
+        translation.ToTable("RecipeTranslations");
+        translation.HasKey(item => new { item.RecipeId, item.Language });
+        translation.Property(item => item.Language).HasMaxLength(2);
+        translation.Property(item => item.Content).HasColumnType("text").IsRequired();
+        translation.Property(item => item.SourceHash).HasMaxLength(64).IsRequired();
+        translation.HasOne<Recipe>()
+            .WithMany()
+            .HasForeignKey(item => item.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         var ingredient = modelBuilder.Entity<RecipeIngredient>();
         ingredient.ToTable("RecipeIngredientEntity");
         ingredient.HasKey(item => item.Id);

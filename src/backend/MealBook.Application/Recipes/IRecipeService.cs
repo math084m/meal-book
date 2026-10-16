@@ -6,9 +6,9 @@ public interface IRecipeService
         RecipeSearchRequest search,
         CancellationToken cancellationToken);
 
-    Task<RecipeResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<RecipeResponse?> GetByIdAsync(Guid id, string? language, CancellationToken cancellationToken);
 
-    Task<RecipeDashboardResponse> GetDashboardAsync(CancellationToken cancellationToken);
+    Task<RecipeDashboardResponse> GetDashboardAsync(string? language, CancellationToken cancellationToken);
 
     Task<RecipeResponse> CreateAsync(
         CreateRecipeRequest request,
@@ -18,7 +18,7 @@ public interface IRecipeService
         ImportRecipeRequest request,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<RecipeResponse>> GetDraftsAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<RecipeResponse>> GetDraftsAsync(string? language, CancellationToken cancellationToken);
 
     Task<RecipeResponse?> UpdateAsync(
         Guid id,

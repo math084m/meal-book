@@ -104,6 +104,26 @@ region. Set `ConnectionStrings__MealBook` as a Fly secret to your managed
 PostgreSQL connection string, or attach a Fly Postgres database that provides a
 `DATABASE_URL` URI. The API reads either setting and applies Migr8 SQL migrations at startup.
 
+## Languages (English / Danish)
+
+The UI is available in English and Danish (switcher in the top bar; defaults to
+the browser language). Recipes have a source `language` (`en` or `da`). When a
+recipe is published (created published, saved while published, or published from
+drafts) it is machine-translated to the other language with
+[DeepL](https://www.deepl.com/pro-api) and stored; readers see it in their UI
+language with a "machine translated" badge. Meal type, course, cooking method
+and cuisine are not translated (they are filter values), and search runs on the
+original text. Saving an unchanged recipe does not call DeepL again. Existing
+recipes are translated the next time they are saved or republished.
+
+Without a key nothing is translated and everything else works. Set the DeepL
+API key (a `:fx` key uses the free endpoint) as a Fly secret, and locally via
+`MEALBOOK_DEEPL_API_KEY` for Docker Compose or `DeepL__ApiKey` for `dotnet run`:
+
+```powershell
+fly secrets set DeepL__ApiKey="your-key" -a meal-book
+```
+
 ## AI-assisted recipe imports
 
 Playwright is free browser automation, not an AI recipe extractor. Keep browser
@@ -131,7 +151,7 @@ Send `POST /api/recipe-imports` with `Content-Type: application/json` and
 `X-Recipe-Import-Key`. Payload uses recipe write fields (`name`, `description`,
 `servings`, `prepTimeMinutes`, `cookTimeMinutes`, `mealType`, `course`,
 `cookingMethod`, `cuisine`, nutrition fields, `tags`, `ingredients`, `steps`,
-`equipment`) plus `sourceUrl`. Example:
+`equipment`) plus `sourceUrl` and `language` (`en`/`da`, default `en`). Example:
 
 ```json
 {

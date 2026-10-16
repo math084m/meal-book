@@ -23,6 +23,7 @@ public sealed class Recipe
     public DateTimeOffset AddedAt { get; private set; }
     public bool IsPublished { get; private set; }
     public string? SourceUrl { get; private set; }
+    public string Language { get; private set; } = "en";
     public List<RecipeIngredient> Ingredients { get; private set; } = [];
     public List<RecipeStep> Steps { get; private set; } = [];
     public List<RecipeEquipment> Equipment { get; private set; } = [];
@@ -51,9 +52,11 @@ public sealed class Recipe
         Guid? id = null,
         DateTimeOffset? addedAt = null,
         bool isPublished = true,
-        string? sourceUrl = null) =>
+        string? sourceUrl = null,
+        string language = "en") =>
         new()
         {
+            Language = language,
             Id = id ?? Guid.NewGuid(),
             Name = name.Trim(),
             Description = description?.Trim(),
@@ -80,6 +83,29 @@ public sealed class Recipe
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select((tag, position) => RecipeTag.Create(tag, position))
                 .ToList()
+        };
+}
+
+public sealed class RecipeTranslation
+{
+    private RecipeTranslation()
+    {
+    }
+
+    public Guid RecipeId { get; private set; }
+    public string Language { get; private set; } = string.Empty;
+    public string Content { get; private set; } = string.Empty;
+    public string SourceHash { get; private set; } = string.Empty;
+    public DateTimeOffset TranslatedAt { get; private set; }
+
+    public static RecipeTranslation Create(Guid recipeId, string language, string content, string sourceHash) =>
+        new()
+        {
+            RecipeId = recipeId,
+            Language = language,
+            Content = content,
+            SourceHash = sourceHash,
+            TranslatedAt = DateTimeOffset.UtcNow
         };
 }
 

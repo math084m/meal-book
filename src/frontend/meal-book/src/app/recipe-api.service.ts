@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { I18nService } from './i18n.service';
 
 export interface RecipeIngredient {
   name: string;
@@ -35,6 +36,9 @@ export interface Recipe {
   ingredients: RecipeIngredient[];
   steps: string[];
   equipment: string[];
+  language: string;
+  displayLanguage: string;
+  isTranslated: boolean;
 }
 
 export interface RecipeSearch {
@@ -49,6 +53,7 @@ export interface RecipeSearch {
   maxCalories?: number | null;
   minRating?: number | null;
   sort?: string;
+  lang?: string;
 }
 
 export interface RecipeDashboard {
@@ -67,6 +72,7 @@ export interface CookLog {
 }
 
 export interface RecipeWrite {
+  language: string;
   name: string;
   description: string;
   servings: number;
@@ -94,20 +100,31 @@ const apiUrl = new URL('api/', document.baseURI).toString();
 export class RecipeApiService {
   private readonly http = inject(HttpClient);
 
+  private readonly i18n = inject(I18nService);
+
   getRecipes(search: RecipeSearch = {}): Observable<Recipe[]> {
-    return this.http.get<Recipe[]>(`${apiUrl}recipes`, { params: this.toParams(search) });
+    return this.http.get<Recipe[]>(`${apiUrl}recipes`, {
+      params: this.toParams({ ...search, lang: this.i18n.lang() })
+    });
   }
 
-  getRecipe(id: string): Observable<Recipe> {
-    return this.http.get<Recipe>(`${apiUrl}recipes/${id}`);
+  // original = true skips translation, so the editor always works on the source text.
+  getRecipe(id: string, original = false): Observable<Recipe> {
+    return this.http.get<Recipe>(`${apiUrl}recipes/${id}`, {
+      params: original ? {} : { lang: this.i18n.lang() }
+    });
   }
 
   getDrafts(): Observable<Recipe[]> {
-    return this.http.get<Recipe[]>(`${apiUrl}recipes/admin/drafts`);
+    return this.http.get<Recipe[]>(`${apiUrl}recipes/admin/drafts`, {
+      params: { lang: this.i18n.lang() }
+    });
   }
 
   getDashboard(): Observable<RecipeDashboard> {
-    return this.http.get<RecipeDashboard>(`${apiUrl}recipes/dashboard`);
+    return this.http.get<RecipeDashboard>(`${apiUrl}recipes/dashboard`, {
+      params: { lang: this.i18n.lang() }
+    });
   }
 
   logCooked(id: string, rating: number | null, notes: string): Observable<CookLog> {

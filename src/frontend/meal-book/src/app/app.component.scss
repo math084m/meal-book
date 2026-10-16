@@ -37,7 +37,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: white;
+  color: var(--button-ink);
   background: var(--green);
   font-family: var(--sans);
   font-size: 1rem;
@@ -70,7 +70,7 @@ nav a.active {
 .nav-signup {
   padding: 0.55rem 0.85rem;
   border-radius: 6px;
-  color: white;
+  color: var(--button-ink);
   background: var(--green);
 }
 
@@ -83,8 +83,27 @@ nav a.active {
   cursor: pointer;
 }
 
+.lang-switch,
+.theme-toggle {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: inherit;
+  background: var(--input-bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lang-switch {
+  width: auto;
+  min-height: 0;
+}
+
+.theme-toggle {
+  line-height: 1.2;
+}
+
 main {
-  flex: 1;
 }
 
 footer {

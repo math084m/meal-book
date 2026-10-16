@@ -208,6 +208,70 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task PublishedRecipe_IsTranslatedBothWays_AndServedByLanguage()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+
+        var englishName = $"Translation test {Guid.NewGuid():N}";
+        using var createEnglish = await admin.PostAsJsonAsync("/api/recipes", TranslatableRecipe(englishName, "en"));
+        Assert.Equal(HttpStatusCode.Created, createEnglish.StatusCode);
+        var englishId = (await ReadJsonAsync(createEnglish)).GetProperty("id").GetGuid();
+
+        using var anonymous = fixture.Factory.CreateClient();
+        var original = await ReadJsonAsync(await anonymous.GetAsync($"/api/recipes/{englishId}"));
+        Assert.Equal(englishName, original.GetProperty("name").GetString());
+        Assert.False(original.GetProperty("isTranslated").GetBoolean());
+
+        var danish = await ReadJsonAsync(await anonymous.GetAsync($"/api/recipes/{englishId}?lang=da"));
+        Assert.Equal($"[da] {englishName}", danish.GetProperty("name").GetString());
+        Assert.True(danish.GetProperty("isTranslated").GetBoolean());
+        Assert.Equal("da", danish.GetProperty("displayLanguage").GetString());
+        Assert.Equal("en", danish.GetProperty("language").GetString());
+        var ingredient = danish.GetProperty("ingredients")[0];
+        Assert.Equal("[da] Tomato", ingredient.GetProperty("name").GetString());
+        Assert.Equal(2m, ingredient.GetProperty("quantity").GetDecimal());
+        Assert.Equal("g", ingredient.GetProperty("unit").GetString());
+        Assert.Equal("[da] Prepare ingredients.", danish.GetProperty("steps")[0].GetString());
+
+        var sameLanguage = await ReadJsonAsync(await anonymous.GetAsync($"/api/recipes/{englishId}?lang=en"));
+        Assert.False(sameLanguage.GetProperty("isTranslated").GetBoolean());
+
+        using var list = await anonymous.GetAsync("/api/recipes?lang=da");
+        Assert.Contains($"[da] {englishName}", await list.Content.ReadAsStringAsync());
+
+        var renamed = englishName + " updated";
+        using var update = await admin.PutAsJsonAsync($"/api/recipes/{englishId}", TranslatableRecipe(renamed, "en"));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        var afterUpdate = await ReadJsonAsync(await anonymous.GetAsync($"/api/recipes/{englishId}?lang=da"));
+        Assert.Equal($"[da] {renamed}", afterUpdate.GetProperty("name").GetString());
+
+        var danishName = $"Oversaettelse {Guid.NewGuid():N}";
+        using var createDanish = await admin.PostAsJsonAsync("/api/recipes", TranslatableRecipe(danishName, "da"));
+        var danishId = (await ReadJsonAsync(createDanish)).GetProperty("id").GetGuid();
+        var english = await ReadJsonAsync(await anonymous.GetAsync($"/api/recipes/{danishId}?lang=en"));
+        Assert.Equal($"[en] {danishName}", english.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task DraftIsTranslatedOnlyWhenPublished()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var name = $"Draft translation {Guid.NewGuid():N}";
+        using var import = await ImportAsync(fixture.Factory.CreateClient(), ImportRecipe(name));
+        var id = (await ReadJsonAsync(import)).GetProperty("id").GetGuid();
+
+        var draft = await ReadJsonAsync(await admin.GetAsync($"/api/recipes/{id}?lang=da"));
+        Assert.False(draft.GetProperty("isTranslated").GetBoolean());
+
+        using var publish = await admin.PostAsync($"/api/recipes/{id}/publish", null);
+        Assert.Equal(HttpStatusCode.OK, publish.StatusCode);
+        var published = await ReadJsonAsync(await admin.GetAsync($"/api/recipes/{id}?lang=da"));
+        Assert.Equal($"[da] {name}", published.GetProperty("name").GetString());
+    }
+
+    [Fact]
     public async Task RecipeEndpoints_RequireAdminForDraftListing()
     {
         using var client = fixture.Factory.CreateClient();
@@ -227,6 +291,39 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         Assert.False(string.IsNullOrWhiteSpace(token));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
+
+    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return body.RootElement.Clone();
+    }
+
+    private static Task<HttpResponseMessage> ImportAsync(HttpClient client, object payload)
+    {
+        client.DefaultRequestHeaders.Add("X-Recipe-Import-Key", new string('k', 48));
+        return client.PostAsJsonAsync("/api/recipe-imports", payload);
+    }
+
+    private static object TranslatableRecipe(string name, string language) => new
+    {
+        name,
+        description = "Description text.",
+        language,
+        servings = 4,
+        prepTimeMinutes = 10,
+        cookTimeMinutes = 20,
+        mealType = "Dinner",
+        course = "Main",
+        cookingMethod = "Bake",
+        cuisine = "Test",
+        tags = new[] { "quick" },
+        ingredients = new[]
+        {
+            new { name = "Tomato", quantity = 2m, unit = "g", section = "Sauce" }
+        },
+        steps = new[] { "Prepare ingredients.", "Cook until ready." },
+        equipment = new[] { "Pan" }
+    };
 
     private static object ValidRecipe() => new
     {

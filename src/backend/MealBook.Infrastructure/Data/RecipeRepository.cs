@@ -143,6 +143,38 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
         return true;
     }
 
+    public async Task<IReadOnlyDictionary<Guid, RecipeTranslation>> GetTranslationsAsync(
+        IReadOnlyCollection<Guid> recipeIds,
+        string language,
+        CancellationToken cancellationToken)
+    {
+        if (recipeIds.Count == 0)
+        {
+            return new Dictionary<Guid, RecipeTranslation>();
+        }
+
+        var ids = recipeIds.ToArray();
+        return await db.Set<RecipeTranslation>()
+            .AsNoTracking()
+            .Where(item => item.Language == language && ids.Contains(item.RecipeId))
+            .ToDictionaryAsync(item => item.RecipeId, cancellationToken);
+    }
+
+    public async Task SaveTranslationAsync(RecipeTranslation translation, CancellationToken cancellationToken)
+    {
+        var existing = await db.Set<RecipeTranslation>()
+            .SingleOrDefaultAsync(
+                item => item.RecipeId == translation.RecipeId && item.Language == translation.Language,
+                cancellationToken);
+        if (existing is not null)
+        {
+            db.Remove(existing);
+        }
+
+        db.Add(translation);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<bool> PublishAsync(Guid id, CancellationToken cancellationToken)
     {
         var recipe = await db.Recipes.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
