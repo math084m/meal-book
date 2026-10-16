@@ -28,6 +28,20 @@ public sealed class MealPlanEntry
         };
 }
 
+// An amount of an ingredient already at home, in the normalised aggregation unit.
+public sealed class ShoppingHave
+{
+    private ShoppingHave()
+    {
+    }
+
+    public Guid IngredientId { get; private set; }
+    public string Unit { get; private set; } = string.Empty;
+    public decimal Quantity { get; private set; }
+    public string UpdatedByUserId { get; private set; } = string.Empty;
+    public DateTimeOffset UpdatedAt { get; private set; }
+}
+
 // A shopping list line that has been ticked off. The unit is the normalised aggregation unit.
 public sealed class ShoppingCheck
 {

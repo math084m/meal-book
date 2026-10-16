@@ -14,6 +14,7 @@ public sealed class MealPlanService(
         var lang = NormalizeLanguage(language);
         var entries = await plan.GetEntriesAsync(cancellationToken);
         var checks = await plan.GetChecksAsync(cancellationToken);
+        var haves = await plan.GetHavesAsync(cancellationToken);
         var sections = await catalog.GetShopSectionsAsync(cancellationToken);
 
         var totals = new Dictionary<(string Key, string Unit), Total>();
@@ -52,6 +53,10 @@ public sealed class MealPlanService(
                     Math.Round(total.Quantity, 3),
                     total.Unit,
                     total.IngredientId is { } id && checks.Contains(new ShoppingCheckKey(id, total.Unit)),
+                    total.IngredientId is { } haveId
+                        && haves.TryGetValue(new ShoppingCheckKey(haveId, total.Unit), out var have)
+                            ? have
+                            : 0m,
                     total.Recipes))
                 .ToArray();
             if (items.Length > 0)
@@ -171,6 +176,17 @@ public sealed class MealPlanService(
         CancellationToken cancellationToken)
     {
         await plan.SetCheckedAsync(ingredientId, unit.Trim().ToLowerInvariant(), isChecked, userId, cancellationToken);
+        await notifier.PlanChangedAsync(cancellationToken);
+    }
+
+    public async Task SetHaveAsync(
+        Guid ingredientId,
+        string unit,
+        decimal quantity,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        await plan.SetHaveAsync(ingredientId, unit.Trim().ToLowerInvariant(), quantity, userId, cancellationToken);
         await notifier.PlanChangedAsync(cancellationToken);
     }
 

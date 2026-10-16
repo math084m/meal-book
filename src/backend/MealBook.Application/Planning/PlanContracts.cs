@@ -42,6 +42,16 @@ public interface IMealPlanRepository
 
     Task<IReadOnlySet<ShoppingCheckKey>> GetChecksAsync(CancellationToken cancellationToken);
 
+    Task<IReadOnlyDictionary<ShoppingCheckKey, decimal>> GetHavesAsync(CancellationToken cancellationToken);
+
+    // A quantity of zero or less removes the amount.
+    Task SetHaveAsync(
+        Guid ingredientId,
+        string unit,
+        decimal quantity,
+        string userId,
+        CancellationToken cancellationToken);
+
     // Perishable ingredient usages of every published recipe, used for suggestions.
     Task<IReadOnlyList<PerishableUsage>> GetPerishableUsagesAsync(CancellationToken cancellationToken);
 
@@ -89,6 +99,7 @@ public sealed record ShoppingItemResponse(
     decimal Quantity,
     string Unit,
     bool Checked,
+    decimal Have,
     IReadOnlyList<string> Recipes);
 
 public sealed record ShoppingSectionResponse(
@@ -131,8 +142,27 @@ public sealed class ShoppingCheckRequest
     public bool Checked { get; init; }
 }
 
+public sealed class ShoppingHaveRequest
+{
+    public Guid IngredientId { get; init; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.StringLength(40, MinimumLength = 1)]
+    public string Unit { get; init; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Range(0, 1000000)]
+    public decimal Quantity { get; init; }
+}
+
 public interface IMealPlanService
 {
+    Task SetHaveAsync(
+        Guid ingredientId,
+        string unit,
+        decimal quantity,
+        string userId,
+        CancellationToken cancellationToken);
+
     Task<MealPlanResponse> GetPlanAsync(string? language, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<PlanSuggestionResponse>> GetSuggestionsAsync(

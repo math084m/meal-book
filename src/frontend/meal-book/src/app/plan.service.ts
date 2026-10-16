@@ -18,6 +18,7 @@ export interface ShoppingItem {
   quantity: number;
   unit: string;
   checked: boolean;
+  have: number;
   recipes: string[];
 }
 
@@ -119,6 +120,28 @@ export class PlanService {
     );
     this.http
       .put(`${apiUrl}meal-plan/checks`, { ingredientId: item.ingredientId, unit: item.unit, checked })
+      .subscribe({ next: () => this.refresh(), error: () => this.refresh() });
+  }
+
+  // Records how much of an item is already at home, in the item's own (normalised) unit.
+  setHave(item: ShoppingItem, quantity: number): void {
+    if (!item.ingredientId) return;
+    const value = Math.max(0, Math.round(quantity * 1000) / 1000);
+    this.plan.update(plan =>
+      plan
+        ? {
+            ...plan,
+            sections: plan.sections.map(section => ({
+              ...section,
+              items: section.items.map(i =>
+                i.ingredientId === item.ingredientId && i.unit === item.unit ? { ...i, have: value } : i
+              )
+            }))
+          }
+        : plan
+    );
+    this.http
+      .put(`${apiUrl}meal-plan/have`, { ingredientId: item.ingredientId, unit: item.unit, quantity: value })
       .subscribe({ next: () => this.refresh(), error: () => this.refresh() });
   }
 

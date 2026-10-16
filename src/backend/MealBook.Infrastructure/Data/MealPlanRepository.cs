@@ -75,6 +75,41 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
         .Select(check => new ShoppingCheckKey(check.IngredientId, check.Unit))
         .ToHashSet();
 
+    public async Task<IReadOnlyDictionary<ShoppingCheckKey, decimal>> GetHavesAsync(
+        CancellationToken cancellationToken) =>
+        (await db.Set<ShoppingHave>()
+            .AsNoTracking()
+            .Select(have => new { have.IngredientId, have.Unit, have.Quantity })
+            .ToListAsync(cancellationToken))
+        .ToDictionary(have => new ShoppingCheckKey(have.IngredientId, have.Unit), have => have.Quantity);
+
+    public async Task SetHaveAsync(
+        Guid ingredientId,
+        string unit,
+        decimal quantity,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        if (quantity <= 0)
+        {
+            await db.Set<ShoppingHave>()
+                .Where(have => have.IngredientId == ingredientId && have.Unit == unit)
+                .ExecuteDeleteAsync(cancellationToken);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "ShoppingHaves" ("IngredientId", "Unit", "Quantity", "UpdatedByUserId", "UpdatedAt")
+            SELECT {ingredientId}, {unit}, {quantity}, {userId}, {now}
+            WHERE EXISTS (SELECT 1 FROM "Ingredients" WHERE "Id" = {ingredientId})
+            ON CONFLICT ("IngredientId", "Unit")
+            DO UPDATE SET "Quantity" = EXCLUDED."Quantity", "UpdatedByUserId" = EXCLUDED."UpdatedByUserId", "UpdatedAt" = EXCLUDED."UpdatedAt"
+            """,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PerishableUsage>> GetPerishableUsagesAsync(CancellationToken cancellationToken) =>
         await (
             from line in db.Set<RecipeIngredient>().AsNoTracking()
@@ -203,8 +238,11 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
             cancellationToken);
     }
 
-    public async Task ClearChecksAsync(CancellationToken cancellationToken) =>
+    public async Task ClearChecksAsync(CancellationToken cancellationToken)
+    {
         await db.Set<ShoppingCheck>().ExecuteDeleteAsync(cancellationToken);
+        await db.Set<ShoppingHave>().ExecuteDeleteAsync(cancellationToken);
+    }
 }
 
 public sealed class PgMealPlanNotifier(RecipeDbContext db) : IMealPlanNotifier

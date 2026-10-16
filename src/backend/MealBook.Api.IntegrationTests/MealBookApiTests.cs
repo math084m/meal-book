@@ -479,6 +479,33 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
             .Single(item => item.GetProperty("name").GetString() == "Tomato")
             .GetProperty("checked").GetBoolean());
 
+        using var have = await client.PutAsJsonAsync(
+            "/api/meal-plan/have",
+            new { ingredientId = tomatoId, unit = "ml", quantity = 150m });
+        Assert.Equal(HttpStatusCode.NoContent, have.StatusCode);
+        using var haveUpdate = await client.PutAsJsonAsync(
+            "/api/meal-plan/have",
+            new { ingredientId = tomatoId, unit = "ml", quantity = 200m });
+        Assert.Equal(HttpStatusCode.NoContent, haveUpdate.StatusCode);
+        using var negativeHave = await client.PutAsJsonAsync(
+            "/api/meal-plan/have",
+            new { ingredientId = tomatoId, unit = "ml", quantity = -1m });
+        Assert.Equal(HttpStatusCode.BadRequest, negativeHave.StatusCode);
+        var haveTomato = (await ReadJsonAsync(await client.GetAsync("/api/meal-plan"))).GetProperty("sections")
+            .EnumerateArray()
+            .SelectMany(section => section.GetProperty("items").EnumerateArray())
+            .Single(item => item.GetProperty("name").GetString() == "Tomato");
+        Assert.Equal(200m, haveTomato.GetProperty("have").GetDecimal());
+        using var noHave = await client.PutAsJsonAsync(
+            "/api/meal-plan/have",
+            new { ingredientId = tomatoId, unit = "ml", quantity = 0m });
+        Assert.Equal(HttpStatusCode.NoContent, noHave.StatusCode);
+        Assert.Equal(0m, (await ReadJsonAsync(await client.GetAsync("/api/meal-plan"))).GetProperty("sections")
+            .EnumerateArray()
+            .SelectMany(section => section.GetProperty("items").EnumerateArray())
+            .Single(item => item.GetProperty("name").GetString() == "Tomato")
+            .GetProperty("have").GetDecimal());
+
         var suggestions = await ReadJsonAsync(await client.GetAsync("/api/meal-plan/suggestions"));
         var suggestedIds = suggestions.EnumerateArray().Select(item => item.GetProperty("recipeId").GetGuid()).ToList();
         Assert.DoesNotContain(first, suggestedIds);

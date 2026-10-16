@@ -81,6 +81,20 @@ public sealed class MealPlanController(IMealPlanService plan) : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("have")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetHave(ShoppingHaveRequest request, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        await plan.SetHaveAsync(request.IngredientId, request.Unit, request.Quantity, userId, cancellationToken);
+        return NoContent();
+    }
+
     [HttpDelete("checks")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ClearChecks(CancellationToken cancellationToken)

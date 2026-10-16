@@ -92,6 +92,20 @@ import { formatTotal } from './servings-scaling';
                         <span class="shop-qty">{{ amount(item) }}</span>
                         <span>{{ item.name }}</span>
                       </label>
+                      @if (item.ingredientId) {
+                        <span class="have-row">
+                          <label class="have-label">{{ i18n.t('plan.have') }}
+                            <select [attr.aria-label]="i18n.t('plan.have.aria', { name: item.name })" (change)="setHave(item, $event)">
+                              @for (option of haveOptions; track option.value) {
+                                <option [value]="option.value" [selected]="option.value === haveFraction(item)">{{ option.label }}</option>
+                              }
+                            </select>
+                          </label>
+                          @if (item.have > 0) {
+                            <span class="muted small-text">{{ remaining(item) }}</span>
+                          }
+                        </span>
+                      }
                     </li>
                   }
                 </ul>
@@ -124,6 +138,9 @@ import { formatTotal } from './servings-scaling';
     .shop-list label { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
     .shop-qty { font-weight: 650; min-width: 4.5rem; }
     .shop-list li.done span { text-decoration: line-through; color: var(--muted); }
+    .have-row { display: flex; align-items: center; gap: 0.6rem; margin: 0.15rem 0 0 1.6rem; }
+    .have-label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
+    .have-label select { padding: 0.1rem 0.3rem; }
     .live-pill { margin-left: 0.5rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--green-wash); color: var(--tag-ink); font-size: 0.78rem; }
     .live-pill.off { background: transparent; border: 1px solid var(--line); color: var(--muted); }
   `
@@ -134,6 +151,34 @@ export class PlanComponent {
 
   amount(item: ShoppingItem): string {
     return formatTotal(item.quantity, item.unit, this.i18n.lang());
+  }
+
+  readonly haveOptions = [
+    { value: '0', label: '0' },
+    { value: '0.25', label: '¼' },
+    { value: '0.5', label: '½' },
+    { value: '0.75', label: '¾' },
+    { value: '1', label: '1/1' }
+  ];
+
+  // The share of the needed amount already at home, snapped to the nearest option.
+  haveFraction(item: ShoppingItem): string {
+    const ratio = item.quantity > 0 ? item.have / item.quantity : 0;
+    return this.haveOptions.reduce((best, option) =>
+      Math.abs(Number(option.value) - ratio) < Math.abs(Number(best.value) - ratio) ? option : best
+    ).value;
+  }
+
+  setHave(item: ShoppingItem, event: Event): void {
+    const fraction = Number((event.target as HTMLSelectElement).value);
+    this.plan.setHave(item, item.quantity * fraction);
+  }
+
+  remaining(item: ShoppingItem): string {
+    const left = item.quantity - item.have;
+    return left <= 0
+      ? this.i18n.t('plan.have.enough')
+      : this.i18n.t('plan.have.buy', { amount: formatTotal(left, item.unit, this.i18n.lang()) });
   }
 
   toggle(item: ShoppingItem, event: Event): void {

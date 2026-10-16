@@ -112,6 +112,17 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .HasForeignKey(item => item.IngredientId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        var shoppingHave = modelBuilder.Entity<MealBook.Domain.Planning.ShoppingHave>();
+        shoppingHave.ToTable("ShoppingHaves");
+        shoppingHave.HasKey(item => new { item.IngredientId, item.Unit });
+        shoppingHave.Property(item => item.Unit).HasMaxLength(40);
+        shoppingHave.Property(item => item.Quantity).HasPrecision(14, 3);
+        shoppingHave.Property(item => item.UpdatedByUserId).HasMaxLength(450).IsRequired();
+        shoppingHave.HasOne<Ingredient>()
+            .WithMany()
+            .HasForeignKey(item => item.IngredientId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         var term = modelBuilder.Entity<Term>();
         term.ToTable("Terms");
         term.HasKey(item => new { item.Kind, item.Slug });
