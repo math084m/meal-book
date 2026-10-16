@@ -86,25 +86,20 @@ import { formatTotal } from './servings-scaling';
                 <h3 class="shop-section">{{ section.name }}</h3>
                 <ul class="shop-list">
                   @for (item of section.items; track item.ingredientId + '|' + item.name + '|' + item.unit) {
-                    <li [class.done]="item.checked" [title]="i18n.t('plan.shopping.for', { recipes: item.recipes.join(', ') })">
-                      <label>
+                    <li class="shop-item" [class.done]="item.checked" [title]="i18n.t('plan.shopping.for', { recipes: item.recipes.join(', ') })">
+                      <label class="shop-main">
                         <input type="checkbox" [checked]="item.checked" [disabled]="!item.ingredientId" (change)="toggle(item, $event)" />
-                        <span class="shop-qty">{{ amount(item) }}</span>
-                        <span>{{ item.name }}</span>
+                        <span class="shop-text">
+                          <span class="shop-name">{{ item.name }}</span>
+                          <span class="shop-qty">{{ amount(item) }}@if (item.have > 0) { · {{ remaining(item) }} }</span>
+                        </span>
                       </label>
                       @if (item.ingredientId) {
-                        <span class="have-row">
-                          <label class="have-label">{{ i18n.t('plan.have') }}
-                            <select [attr.aria-label]="i18n.t('plan.have.aria', { name: item.name })" (change)="setHave(item, $event)">
-                              @for (option of haveOptions; track option.value) {
-                                <option [value]="option.value" [selected]="option.value === haveFraction(item)">{{ option.label }}</option>
-                              }
-                            </select>
-                          </label>
-                          @if (item.have > 0) {
-                            <span class="muted small-text">{{ remaining(item) }}</span>
+                        <select class="have-select" [attr.aria-label]="i18n.t('plan.have.aria', { name: item.name })" [title]="i18n.t('plan.have')" (change)="setHave(item, $event)">
+                          @for (option of haveOptions; track option.value) {
+                            <option [value]="option.value" [selected]="option.value === haveFraction(item)">{{ option.value === '0' ? i18n.t('plan.have.none') : i18n.t('plan.have.share', { share: option.label }) }}</option>
                           }
-                        </span>
+                        </select>
                       }
                     </li>
                   }
@@ -134,13 +129,15 @@ import { formatTotal } from './servings-scaling';
     .plan-stepper { display: inline-flex; align-items: center; gap: 0.4rem; }
     .small-text { font-size: 0.85rem; }
     .shop-section { margin: 1.2rem 0 0.3rem; font-size: 1rem; color: var(--green); }
-    .shop-list li { padding: 0.3rem 0; border-top: 1px solid var(--line); }
-    .shop-list label { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
-    .shop-qty { font-weight: 650; min-width: 4.5rem; }
-    .shop-list li.done span { text-decoration: line-through; color: var(--muted); }
-    .have-row { display: flex; align-items: center; gap: 0.6rem; margin: 0.15rem 0 0 1.6rem; }
-    .have-label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
-    .have-label select { padding: 0.1rem 0.3rem; }
+    .shop-list li { display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+    .shop-main { flex: 1; min-width: 0; flex-direction: row; align-items: center; gap: 0.8rem; cursor: pointer; font-size: 0.95rem; font-weight: 400; color: var(--ink); }
+    .shop-main input[type='checkbox'] { flex: none; width: 1.25rem; min-height: 0; height: 1.25rem; padding: 0; accent-color: var(--green); cursor: pointer; }
+    .shop-text { display: flex; flex-direction: column; min-width: 0; }
+    .shop-name { font-weight: 600; }
+    .shop-qty { font-size: 0.85rem; color: var(--muted); }
+    .shop-list li.done .shop-name { text-decoration: line-through; color: var(--muted); }
+    .have-select { flex: none; width: auto; min-height: 0; padding: 0.25rem 0.4rem; font-size: 0.82rem; color: var(--muted); }
+    .plan-head .link-button { background: none; border: 0; padding: 0; color: var(--green); font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
     .live-pill { margin-left: 0.5rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--green-wash); color: var(--tag-ink); font-size: 0.78rem; }
     .live-pill.off { background: transparent; border: 1px solid var(--line); color: var(--muted); }
   `
