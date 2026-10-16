@@ -125,7 +125,7 @@ public sealed class CreateRecipeIngredientRequest
     [System.ComponentModel.DataAnnotations.StringLength(200, MinimumLength = 1)]
     public string Name { get; init; } = string.Empty;
 
-    [System.ComponentModel.DataAnnotations.Range(typeof(decimal), "0.001", "1000000")]
+    [System.ComponentModel.DataAnnotations.Range(typeof(decimal), "0.001", "1000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true)]
     public decimal Quantity { get; init; }
 
     [System.ComponentModel.DataAnnotations.Required]

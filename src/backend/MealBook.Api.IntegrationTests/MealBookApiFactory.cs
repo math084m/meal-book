@@ -9,13 +9,11 @@ public sealed class MealBookApiFactory(string connectionString) : WebApplication
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseContentRoot(AppContext.BaseDirectory);
-        builder.ConfigureAppConfiguration((_, configuration) =>
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:MealBook"] = connectionString,
-                ["Admin:Email"] = "admin@mealbook.test",
-                ["Admin:Password"] = "TestAdmin12345",
-                ["RecipeImport:ApiKey"] = new string('k', 48)
-            }));
+        // UseSetting applies before WebApplication.CreateBuilder reads configuration;
+        // ConfigureAppConfiguration is too late for minimal hosting.
+        builder.UseSetting("ConnectionStrings:MealBook", connectionString);
+        builder.UseSetting("Admin:Email", "admin@mealbook.test");
+        builder.UseSetting("Admin:Password", "TestAdmin12345");
+        builder.UseSetting("RecipeImport:ApiKey", new string('k', 48));
     }
 }

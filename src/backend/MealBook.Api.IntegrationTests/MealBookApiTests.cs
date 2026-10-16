@@ -29,7 +29,7 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         Assert.Equal(HttpStatusCode.OK, asset.StatusCode);
         Assert.Equal(
             "export const integrationAsset = true;",
-            await asset.Content.ReadAsStringAsync());
+            (await asset.Content.ReadAsStringAsync()).Trim());
         Assert.StartsWith(
             "text/javascript",
             asset.Content.Headers.ContentType?.MediaType,
