@@ -47,13 +47,32 @@ public static class DependencyInjection
                     Username = Uri.UnescapeDataString(credentials[0]),
                     Password = Uri.UnescapeDataString(credentials[1]),
                     Database = database,
-                    SslMode = SslMode.Require
+                    SslMode = ResolveSslMode(uri)
                 }.ConnectionString;
             }
         }
 
         throw new InvalidOperationException(
             "Configure ConnectionStrings:MealBook or a valid PostgreSQL DATABASE_URL.");
+    }
+    private static SslMode ResolveSslMode(Uri uri)
+    {
+        var query = uri.Query.TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split('=', 2))
+            .Where(part => part.Length == 2)
+            .ToDictionary(part => part[0], part => part[1], StringComparer.OrdinalIgnoreCase);
+        if (query.TryGetValue("sslmode", out var value)
+            && Enum.TryParse<SslMode>(value.Replace("-", string.Empty), true, out var parsed))
+        {
+            return parsed;
+        }
+
+        // Fly private networking is already encrypted and its Postgres does not offer TLS.
+        return uri.Host.EndsWith(".flycast", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase)
+            ? SslMode.Disable
+            : SslMode.Require;
     }
 }
 

@@ -38,6 +38,13 @@ await using (var scope = app.Services.CreateAsyncScope())
         .SeedAsync();
 }
 
+var serveFrontend = Directory.Exists(Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
+if (serveFrontend)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -114,5 +121,9 @@ app.MapGet("/api/auth/me", (ClaimsPrincipal principal) =>
             principal.IsInRole("Admin"))))
     .RequireAuthorization();
 app.MapControllers();
+if (serveFrontend)
+{
+    app.MapFallbackToFile("{*path:regex(^(?!api(/|$)).*$)}", "index.html");
+}
 
 app.Run();
