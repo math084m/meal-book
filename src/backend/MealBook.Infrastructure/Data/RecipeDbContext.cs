@@ -123,6 +123,19 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .HasForeignKey(item => item.IngredientId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        var customItem = modelBuilder.Entity<MealBook.Domain.Planning.ShoppingCustomItem>();
+        customItem.ToTable("ShoppingCustomItems");
+        customItem.HasKey(item => item.Id);
+        customItem.Property(item => item.Name).HasMaxLength(120).IsRequired();
+        customItem.Property(item => item.Quantity).HasPrecision(14, 3);
+        customItem.Property(item => item.Unit).HasMaxLength(40).IsRequired();
+        customItem.Property(item => item.SectionSlug).HasMaxLength(20).IsRequired();
+        customItem.Property(item => item.AddedByUserId).HasMaxLength(450).IsRequired();
+        customItem.HasOne<ShopSection>()
+            .WithMany()
+            .HasForeignKey(item => item.SectionSlug)
+            .OnDelete(DeleteBehavior.Restrict);
+
         var term = modelBuilder.Entity<Term>();
         term.ToTable("Terms");
         term.HasKey(item => new { item.Kind, item.Slug });

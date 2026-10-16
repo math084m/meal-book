@@ -110,6 +110,29 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
             cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ShoppingCustomItem>> GetCustomItemsAsync(CancellationToken cancellationToken) =>
+        await db.Set<ShoppingCustomItem>().AsNoTracking().ToListAsync(cancellationToken);
+
+    public async Task AddCustomItemAsync(
+        string name,
+        decimal quantity,
+        string unit,
+        string sectionSlug,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        db.Set<ShoppingCustomItem>().Add(ShoppingCustomItem.Create(name, quantity, unit, sectionSlug, userId));
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<bool> SetCustomItemCheckedAsync(Guid id, bool isChecked, CancellationToken cancellationToken) =>
+        await db.Set<ShoppingCustomItem>()
+            .Where(item => item.Id == id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.IsChecked, isChecked), cancellationToken) > 0;
+
+    public async Task<bool> RemoveCustomItemAsync(Guid id, CancellationToken cancellationToken) =>
+        await db.Set<ShoppingCustomItem>().Where(item => item.Id == id).ExecuteDeleteAsync(cancellationToken) > 0;
+
     public async Task<IReadOnlyList<PerishableUsage>> GetPerishableUsagesAsync(CancellationToken cancellationToken) =>
         await (
             from line in db.Set<RecipeIngredient>().AsNoTracking()
@@ -209,6 +232,7 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
     public async Task ClearAsync(CancellationToken cancellationToken)
     {
         await db.Set<MealPlanEntry>().ExecuteDeleteAsync(cancellationToken);
+        await db.Set<ShoppingCustomItem>().ExecuteDeleteAsync(cancellationToken);
         await ClearChecksAsync(cancellationToken);
     }
 
@@ -242,6 +266,9 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
     {
         await db.Set<ShoppingCheck>().ExecuteDeleteAsync(cancellationToken);
         await db.Set<ShoppingHave>().ExecuteDeleteAsync(cancellationToken);
+        await db.Set<ShoppingCustomItem>().ExecuteUpdateAsync(
+            setters => setters.SetProperty(item => item.IsChecked, false),
+            cancellationToken);
     }
 }
 

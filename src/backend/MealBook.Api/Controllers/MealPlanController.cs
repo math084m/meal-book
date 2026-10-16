@@ -81,6 +81,37 @@ public sealed class MealPlanController(IMealPlanService plan) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("custom")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddCustom(ShoppingCustomItemRequest request, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        return await plan.AddCustomItemAsync(request, userId, cancellationToken)
+            ? NoContent()
+            : BadRequest(new ProblemDetails { Title = "Unknown shop section or empty name." });
+    }
+
+    [HttpPut("custom/{id:guid}/checked")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetCustomChecked(
+        Guid id,
+        ShoppingCustomCheckRequest request,
+        CancellationToken cancellationToken) =>
+        await plan.SetCustomItemCheckedAsync(id, request.Checked, cancellationToken) ? NoContent() : NotFound();
+
+    [HttpDelete("custom/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveCustom(Guid id, CancellationToken cancellationToken) =>
+        await plan.RemoveCustomItemAsync(id, cancellationToken) ? NoContent() : NotFound();
+
     [HttpPut("have")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SetHave(ShoppingHaveRequest request, CancellationToken cancellationToken)

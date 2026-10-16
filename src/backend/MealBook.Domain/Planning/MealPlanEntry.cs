@@ -28,6 +28,43 @@ public sealed class MealPlanEntry
         };
 }
 
+// An item added by hand (toilet paper, batteries) that belongs to no recipe.
+public sealed class ShoppingCustomItem
+{
+    public const int MaxNameLength = 120;
+    public const int MaxUnitLength = 40;
+
+    private ShoppingCustomItem()
+    {
+    }
+
+    public Guid Id { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    public decimal Quantity { get; private set; }
+    public string Unit { get; private set; } = string.Empty;
+    public string SectionSlug { get; private set; } = string.Empty;
+    public bool IsChecked { get; private set; }
+    public string AddedByUserId { get; private set; } = string.Empty;
+    public DateTimeOffset AddedAt { get; private set; }
+
+    public static ShoppingCustomItem Create(
+        string name,
+        decimal quantity,
+        string unit,
+        string sectionSlug,
+        string userId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Name = name.Trim(),
+            Quantity = Math.Max(quantity, 0),
+            Unit = unit.Trim(),
+            SectionSlug = sectionSlug,
+            AddedByUserId = userId,
+            AddedAt = DateTimeOffset.UtcNow
+        };
+}
+
 // An amount of an ingredient already at home, in the normalised aggregation unit.
 public sealed class ShoppingHave
 {

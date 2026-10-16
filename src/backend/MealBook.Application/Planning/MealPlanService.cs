@@ -15,6 +15,7 @@ public sealed class MealPlanService(
         var entries = await plan.GetEntriesAsync(cancellationToken);
         var checks = await plan.GetChecksAsync(cancellationToken);
         var haves = await plan.GetHavesAsync(cancellationToken);
+        var customItems = await plan.GetCustomItemsAsync(cancellationToken);
         var sections = await catalog.GetShopSectionsAsync(cancellationToken);
 
         var totals = new Dictionary<(string Key, string Unit), Total>();
@@ -58,6 +59,18 @@ public sealed class MealPlanService(
                             ? have
                             : 0m,
                     total.Recipes))
+                .Concat(customItems
+                    .Where(item => item.SectionSlug == section.Slug)
+                    .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .Select(item => new ShoppingItemResponse(
+                        null,
+                        item.Name,
+                        item.Quantity,
+                        item.Unit,
+                        item.IsChecked,
+                        0m,
+                        [],
+                        item.Id)))
                 .ToArray();
             if (items.Length > 0)
             {
@@ -188,6 +201,45 @@ public sealed class MealPlanService(
     {
         await plan.SetHaveAsync(ingredientId, unit.Trim().ToLowerInvariant(), quantity, userId, cancellationToken);
         await notifier.PlanChangedAsync(cancellationToken);
+    }
+
+    public async Task<bool> AddCustomItemAsync(
+        ShoppingCustomItemRequest request,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        var name = request.Name.Trim();
+        var sections = await catalog.GetShopSectionsAsync(cancellationToken);
+        if (name.Length == 0 || sections.All(section => section.Slug != request.SectionSlug))
+        {
+            return false;
+        }
+
+        await plan.AddCustomItemAsync(
+            name,
+            request.Quantity,
+            request.Unit.Trim(),
+            request.SectionSlug,
+            userId,
+            cancellationToken);
+        await notifier.PlanChangedAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SetCustomItemCheckedAsync(Guid id, bool isChecked, CancellationToken cancellationToken) =>
+        await FinishCustomAsync(await plan.SetCustomItemCheckedAsync(id, isChecked, cancellationToken), cancellationToken);
+
+    public async Task<bool> RemoveCustomItemAsync(Guid id, CancellationToken cancellationToken) =>
+        await FinishCustomAsync(await plan.RemoveCustomItemAsync(id, cancellationToken), cancellationToken);
+
+    private async Task<bool> FinishCustomAsync(bool found, CancellationToken cancellationToken)
+    {
+        if (found)
+        {
+            await notifier.PlanChangedAsync(cancellationToken);
+        }
+
+        return found;
     }
 
     public async Task ClearChecksAsync(CancellationToken cancellationToken)

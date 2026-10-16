@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
+import { Observable, tap } from 'rxjs';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
 
@@ -20,6 +21,7 @@ export interface ShoppingItem {
   checked: boolean;
   have: number;
   recipes: string[];
+  customId: string | null;
 }
 
 export interface ShoppingSection {
@@ -104,23 +106,44 @@ export class PlanService {
   }
 
   setChecked(item: ShoppingItem, checked: boolean): void {
+    if (item.customId) {
+      this.patchItem(i => i.customId === item.customId, { checked });
+      this.http
+        .put(`${apiUrl}meal-plan/custom/${item.customId}/checked`, { checked })
+        .subscribe({ next: () => this.refresh(), error: () => this.refresh() });
+      return;
+    }
+
     if (!item.ingredientId) return;
+    this.patchItem(i => i.ingredientId === item.ingredientId && i.unit === item.unit, { checked });
+    this.http
+      .put(`${apiUrl}meal-plan/checks`, { ingredientId: item.ingredientId, unit: item.unit, checked })
+      .subscribe({ next: () => this.refresh(), error: () => this.refresh() });
+  }
+
+  addCustom(name: string, quantity: number, unit: string, sectionSlug: string): Observable<unknown> {
+    return this.http
+      .post(`${apiUrl}meal-plan/custom`, { name, quantity, unit, sectionSlug })
+      .pipe(tap(() => this.refresh()));
+  }
+
+  removeCustom(item: ShoppingItem): void {
+    if (!item.customId) return;
+    this.http.delete(`${apiUrl}meal-plan/custom/${item.customId}`).subscribe({ next: () => this.refresh() });
+  }
+
+  private patchItem(match: (item: ShoppingItem) => boolean, patch: Partial<ShoppingItem>): void {
     this.plan.update(plan =>
       plan
         ? {
             ...plan,
             sections: plan.sections.map(section => ({
               ...section,
-              items: section.items.map(i =>
-                i.ingredientId === item.ingredientId && i.unit === item.unit ? { ...i, checked } : i
-              )
+              items: section.items.map(i => (match(i) ? { ...i, ...patch } : i))
             }))
           }
         : plan
     );
-    this.http
-      .put(`${apiUrl}meal-plan/checks`, { ingredientId: item.ingredientId, unit: item.unit, checked })
-      .subscribe({ next: () => this.refresh(), error: () => this.refresh() });
   }
 
   // Records how much of an item is already at home, in the item's own (normalised) unit.

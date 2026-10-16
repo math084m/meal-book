@@ -506,6 +506,35 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
             .Single(item => item.GetProperty("name").GetString() == "Tomato")
             .GetProperty("have").GetDecimal());
 
+        using var badSection = await client.PostAsJsonAsync(
+            "/api/meal-plan/custom",
+            new { name = "Toilet paper", quantity = 1m, unit = "pack", sectionSlug = "nope" });
+        Assert.Equal(HttpStatusCode.BadRequest, badSection.StatusCode);
+        using var addCustom = await client.PostAsJsonAsync(
+            "/api/meal-plan/custom",
+            new { name = "Toilet paper", quantity = 2m, unit = "pack", sectionSlug = "nonfood" });
+        Assert.Equal(HttpStatusCode.NoContent, addCustom.StatusCode);
+        var customItem = (await ReadJsonAsync(await client.GetAsync("/api/meal-plan"))).GetProperty("sections")
+            .EnumerateArray()
+            .Single(section => section.GetProperty("slug").GetString() == "nonfood")
+            .GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "Toilet paper");
+        var customId = customItem.GetProperty("customId").GetGuid();
+        Assert.Equal(2m, customItem.GetProperty("quantity").GetDecimal());
+        using var customCheck = await client.PutAsJsonAsync(
+            $"/api/meal-plan/custom/{customId}/checked",
+            new { @checked = true });
+        Assert.Equal(HttpStatusCode.NoContent, customCheck.StatusCode);
+        Assert.True((await ReadJsonAsync(await client.GetAsync("/api/meal-plan"))).GetProperty("sections")
+            .EnumerateArray()
+            .SelectMany(section => section.GetProperty("items").EnumerateArray())
+            .Single(item => item.GetProperty("name").GetString() == "Toilet paper")
+            .GetProperty("checked").GetBoolean());
+        using var customRemoved = await client.DeleteAsync($"/api/meal-plan/custom/{customId}");
+        Assert.Equal(HttpStatusCode.NoContent, customRemoved.StatusCode);
+        using var customGone = await client.DeleteAsync($"/api/meal-plan/custom/{customId}");
+        Assert.Equal(HttpStatusCode.NotFound, customGone.StatusCode);
+
         var suggestions = await ReadJsonAsync(await client.GetAsync("/api/meal-plan/suggestions"));
         var suggestedIds = suggestions.EnumerateArray().Select(item => item.GetProperty("recipeId").GetGuid()).ToList();
         Assert.DoesNotContain(first, suggestedIds);
