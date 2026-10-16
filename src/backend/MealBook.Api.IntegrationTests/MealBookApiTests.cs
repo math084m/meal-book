@@ -556,6 +556,39 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task Favorites_ArePersonal_AndOnlyPublishedRecipesCanBeStarred()
+    {
+        using var anonymous = fixture.Factory.CreateClient();
+        using var denied = await anonymous.GetAsync("/api/favorites");
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+        var published = await CreatePlanRecipeAsync(client, "Favourite me", 2, (tomatoId, 1m, "piece"));
+        var draft = await CreatePlanRecipeAsync(client, "Favourite draft", 2, (tomatoId, 1m, "piece"), published: false);
+
+        using var add = await client.PutAsync($"/api/favorites/{published}", null);
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+        using var addAgain = await client.PutAsync($"/api/favorites/{published}", null);
+        Assert.Equal(HttpStatusCode.NoContent, addAgain.StatusCode);
+        using var addDraft = await client.PutAsync($"/api/favorites/{draft}", null);
+        Assert.Equal(HttpStatusCode.NotFound, addDraft.StatusCode);
+        using var addUnknown = await client.PutAsync($"/api/favorites/{Guid.NewGuid()}", null);
+        Assert.Equal(HttpStatusCode.NotFound, addUnknown.StatusCode);
+
+        var ids = (await ReadJsonAsync(await client.GetAsync("/api/favorites"))).EnumerateArray()
+            .Select(item => item.GetGuid()).ToList();
+        Assert.Single(ids, id => id == published);
+        Assert.DoesNotContain(draft, ids);
+
+        using var removed = await client.DeleteAsync($"/api/favorites/{published}");
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        var after = (await ReadJsonAsync(await client.GetAsync("/api/favorites"))).EnumerateArray()
+            .Select(item => item.GetGuid()).ToList();
+        Assert.DoesNotContain(published, after);
+    }
+
+    [Fact]
     public async Task MealPlanChanges_ArePushedToConnectedClients_ThroughTheHub()
     {
         using var client = fixture.Factory.CreateClient();

@@ -107,6 +107,11 @@ Signed-in users share one household plan (`/plan`). Add recipes with the "Add to
 - Realtime: every change calls Postgres `NOTIFY meal_plan_changed`; each API instance `LISTEN`s and pushes `planChanged` over SignalR (`/api/hubs/mealplan`), and clients refetch. This needs a direct (non-pooled) Postgres connection for LISTEN, and the proxy should allow WebSockets (SignalR falls back to SSE/long polling otherwise).
 - Suggestions: recipes sharing perishable ingredients with the plan score highest, rarer ingredients weigh more, and extra perishables are penalised. "Perishable" comes from the section (`ShopSections.Perishable`), so e.g. onions count as fresh.
 
+## Cook mode and favourites
+
+- **Cook mode** (`/recipes/:id/cook`, "Start cooking" on the recipe page): one big step at a time, previous/next buttons, arrow keys and swipe, an ingredients panel scaled to the chosen servings, and an optional timer when a step mentions a duration ("10 minutes", "2 timer"). The screen is kept awake via the Screen Wake Lock API where supported.
+- **Favourites** are personal (per user): a star on recipe cards and the detail page, plus a "Favourites only" filter on the recipe list. API: `GET api/favorites`, `PUT|DELETE api/favorites/{recipeId}` (migration `0025`).
+
 ## Fly.io and a `/meals/` subroute
 
 The frontend and API have separate Dockerfiles and Fly app configs. Update

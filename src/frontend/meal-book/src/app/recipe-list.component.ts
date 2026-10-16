@@ -1,4 +1,4 @@
-import { Component, HostListener, effect, inject, signal, untracked } from '@angular/core';
+import { Component, HostListener, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,13 +7,16 @@ import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap 
 import { Recipe, RecipeApiService, RecipeSuggestion } from './recipe-api.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
 import { PlanButtonComponent } from './plan-button.component';
+import { FavoriteButtonComponent } from './favorite-button.component';
+import { FavoriteService } from './favorite.service';
+import { AuthService } from './auth.service';
 import { I18nService, TranslationKey } from './i18n.service';
 import { CatalogService } from './catalog.service';
 import { SelectFieldComponent } from './select-field.component';
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink, DecimalPipe, SelectFieldComponent, RecipeImagePipe, PlanButtonComponent],
+  imports: [FormsModule, RouterLink, DecimalPipe, SelectFieldComponent, RecipeImagePipe, PlanButtonComponent, FavoriteButtonComponent],
   template: `
     <section class="page-heading">
       <p class="eyebrow">{{ i18n.t('list.eyebrow') }}</p>
@@ -90,6 +93,11 @@ import { SelectFieldComponent } from './select-field.component';
         </select>
       </label>
       <div class="filter-actions">
+        @if (auth.currentUser()) {
+          <button type="button" class="button secondary" [attr.aria-pressed]="favoritesOnly()" (click)="favoritesOnly.set(!favoritesOnly())">
+            {{ favoritesOnly() ? '★' : '☆' }} {{ i18n.t('fav.only') }}
+          </button>
+        }
         <button class="button" type="submit">{{ i18n.t('list.apply') }}</button>
         <button class="button secondary" type="button" (click)="clearFilters()">{{ i18n.t('list.clear') }}</button>
       </div>
@@ -98,16 +106,17 @@ import { SelectFieldComponent } from './select-field.component';
     <section class="library-section">
       <div class="section-heading">
         <h2>{{ i18n.t('list.heading') }}</h2>
-        @if (recipes(); as recipeList) { <span class="muted">{{ i18n.t('list.found', { n: recipeList.length }) }}</span> }
+        @if (shown(); as recipeList) { <span class="muted">{{ i18n.t('list.found', { n: recipeList.length }) }}</span> }
       </div>
       @if (error()) {
         <div class="state-card" role="alert">{{ i18n.t('list.error') }}</div>
       } @else {
-        @if (recipes(); as recipeList) {
+        @if (shown(); as recipeList) {
         @if (recipeList.length) {
           <div class="recipe-grid">
             @for (recipe of recipeList; track recipe.id) {
               <a class="recipe-card" [routerLink]="['/recipes', recipe.id]">
+                <app-favorite-button class="card-fav" [recipeId]="recipe.id" [compact]="true" />
                 <app-plan-button class="card-plan" [recipeId]="recipe.id" [compact]="true" />
                 @if (recipe.imageUrl | recipeImage; as src) { <img class="card-image" [src]="src" alt="" loading="lazy" /> }
                 <p class="eyebrow">{{ catalog.label('cuisine', recipe.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('course', recipe.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>
@@ -158,7 +167,16 @@ export class RecipeListComponent {
   private readonly api = inject(RecipeApiService);
   readonly i18n = inject(I18nService);
   readonly catalog = inject(CatalogService);
+  readonly auth = inject(AuthService);
+  private readonly favorites = inject(FavoriteService);
+  readonly favoritesOnly = signal(false);
   readonly recipes = signal<Recipe[] | null>(null);
+  readonly shown = computed(() => {
+    const list = this.recipes();
+    if (!list || !this.favoritesOnly()) return list;
+    const ids = this.favorites.ids();
+    return list.filter(recipe => ids.has(recipe.id));
+  });
   readonly error = signal(false);
   readonly suggestions = signal<RecipeSuggestion[]>([]);
   readonly suggestionsOpen = signal(false);

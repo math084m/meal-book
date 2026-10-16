@@ -5,11 +5,12 @@ import { I18nService } from './i18n.service';
 import { RecipeApiService, RecipeDashboard } from './recipe-api.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
 import { PlanButtonComponent } from './plan-button.component';
+import { FavoriteButtonComponent } from './favorite-button.component';
 import { CatalogService } from './catalog.service';
 
 @Component({
   standalone: true,
-  imports: [RouterLink, DatePipe, DecimalPipe, RecipeImagePipe, PlanButtonComponent],
+  imports: [RouterLink, DatePipe, DecimalPipe, RecipeImagePipe, PlanButtonComponent, FavoriteButtonComponent],
   template: `
     <section class="hero">
       <p class="eyebrow">{{ i18n.t('home.eyebrow') }}</p>
@@ -53,6 +54,7 @@ import { CatalogService } from './catalog.service';
           <div class="recipe-grid">
             @for (recipe of data.recentlyAdded; track recipe.id) {
               <a class="recipe-card" [routerLink]="['/recipes', recipe.id]">
+                <app-favorite-button class="card-fav" [recipeId]="recipe.id" [compact]="true" />
                 <app-plan-button class="card-plan" [recipeId]="recipe.id" [compact]="true" />
                 @if (recipe.imageUrl | recipeImage; as src) { <img class="card-image" [src]="src" alt="" loading="lazy" /> }
                 <p class="eyebrow">{{ catalog.label('cuisine', recipe.cuisines[0] ?? '') || i18n.t('common.recipeFallback') }} · {{ catalog.label('course', recipe.courses[0] ?? '') || i18n.t('common.anyCourse') }}</p>

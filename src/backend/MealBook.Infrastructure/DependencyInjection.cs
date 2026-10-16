@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton<IImageStorage, MealBook.Infrastructure.Storage.S3ImageStorage>();
         services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<MealBook.Application.Planning.IMealPlanRepository, MealPlanRepository>();
+        services.AddScoped<MealBook.Application.Favorites.IFavoriteRepository, FavoriteRepository>();
         services.AddScoped<MealBook.Application.Planning.IMealPlanNotifier, PgMealPlanNotifier>();
         services.AddHostedService(provider => new MealPlanChangeListener(
             connectionString,

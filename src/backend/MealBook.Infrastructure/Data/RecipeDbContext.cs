@@ -136,6 +136,15 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .HasForeignKey(item => item.SectionSlug)
             .OnDelete(DeleteBehavior.Restrict);
 
+        var favorite = modelBuilder.Entity<MealBook.Domain.Favorites.RecipeFavorite>();
+        favorite.ToTable("RecipeFavorites");
+        favorite.HasKey(item => new { item.UserId, item.RecipeId });
+        favorite.Property(item => item.UserId).HasMaxLength(450);
+        favorite.HasOne<Recipe>()
+            .WithMany()
+            .HasForeignKey(item => item.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         var term = modelBuilder.Entity<Term>();
         term.ToTable("Terms");
         term.HasKey(item => new { item.Kind, item.Slug });

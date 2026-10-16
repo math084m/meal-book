@@ -8,6 +8,7 @@ import { CookingHistoryComponent } from './cooking-history.component';
 import { AdminRecipeFormComponent } from './admin-recipe-form.component';
 import { adminGuard, userGuard } from './auth.guard';
 import { PlanComponent } from './plan.component';
+import { CookModeComponent } from './cook-mode.component';
 import { AdminDraftsComponent } from './admin-drafts.component';
 import { AdminIngredientsComponent } from './admin-ingredients.component';
 
@@ -15,6 +16,7 @@ export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'recipes', component: RecipeListComponent },
   { path: 'recipes/:id', component: RecipeDetailComponent },
+  { path: 'recipes/:id/cook', component: CookModeComponent },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'history', component: CookingHistoryComponent, canActivate: [userGuard] },
