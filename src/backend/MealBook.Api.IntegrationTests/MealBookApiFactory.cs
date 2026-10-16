@@ -18,6 +18,14 @@ public sealed class MealBookApiFactory(string connectionString) : WebApplication
         builder.UseSetting("Admin:Email", "admin@mealbook.test");
         builder.UseSetting("Admin:Password", "TestAdmin12345");
         builder.UseSetting("RecipeImport:ApiKey", new string('k', 48));
+        // The suite makes thousands of requests from one test client with no browser User-Agent.
+        builder.UseSetting("Protection:BlockAutomatedClients", "false");
+        builder.UseSetting("Protection:Api:PerMinute", "100000");
+        builder.UseSetting("Protection:Api:PerDay", "1000000");
+        builder.UseSetting("Protection:Images:PerMinute", "100000");
+        builder.UseSetting("Protection:Images:PerDay", "1000000");
+        builder.UseSetting("Protection:Auth:PerMinute", "100000");
+        builder.UseSetting("Protection:Auth:PerDay", "1000000");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<ITranslator>();

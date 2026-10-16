@@ -124,7 +124,7 @@ import { SelectFieldComponent } from './select-field.component';
                 <p class="description">{{ recipe.description || i18n.t('list.descriptionFallback') }}</p>
                 <p class="recipe-meta">
                   {{ i18n.t('common.minutes', { n: recipe.prepTimeMinutes + recipe.cookTimeMinutes }) }} · {{ i18n.t('common.servings', { n: recipe.servings }) }} ·
-                  {{ i18n.t('common.ingredients', { n: recipe.ingredients.length }) }}
+                  {{ i18n.t('common.ingredients', { n: recipe.ingredientCount }) }}
                 </p>
                 <div class="tag-list">
                   @for (tag of recipe.tags; track tag) { <span class="tag">{{ catalog.label('tag', tag) }}</span> }

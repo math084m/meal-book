@@ -20,7 +20,9 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
                 RecipeServings = recipe.Servings,
                 entry.Servings,
                 recipe.ImageUpdatedAt,
-                entry.AddedAt
+                entry.AddedAt,
+                entry.PlannedStart,
+                entry.PlannedDays
             }).ToListAsync(cancellationToken);
         if (entries.Count == 0)
         {
@@ -63,7 +65,9 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
                         line.Section,
                         line.Quantity,
                         line.Unit))
-                    .ToArray()))
+                    .ToArray(),
+                entry.PlannedStart,
+                entry.PlannedDays))
             .ToArray();
     }
 
@@ -207,6 +211,24 @@ public sealed class MealPlanRepository(RecipeDbContext db) : IMealPlanRepository
         }
 
         entry.SetServings(servings);
+        await db.SaveChangesAsync(cancellationToken);
+        return PlanChangeResult.Changed;
+    }
+
+    public async Task<PlanChangeResult> ScheduleAsync(
+        Guid recipeId,
+        DateOnly? start,
+        int days,
+        CancellationToken cancellationToken)
+    {
+        var entry = await db.Set<MealPlanEntry>()
+            .SingleOrDefaultAsync(item => item.RecipeId == recipeId, cancellationToken);
+        if (entry is null)
+        {
+            return PlanChangeResult.NotFound;
+        }
+
+        entry.Schedule(start, days);
         await db.SaveChangesAsync(cancellationToken);
         return PlanChangeResult.Changed;
     }

@@ -1,3 +1,4 @@
+using MealBook.Api.Protection;
 using MealBook.Application;
 using MealBook.Application.Recipes;
 using MealBook.Infrastructure;
@@ -40,8 +41,11 @@ builder.Services.Configure<Microsoft.AspNetCore.Authentication.BearerToken.Beare
 builder.Services
     .AddMealBookApplication()
     .AddMealBookInfrastructure(builder.Configuration);
+builder.AddMealBookProtection();
 
 var app = builder.Build();
+
+app.UseMealBookResponseHeaders();
 
 app.Services
     .GetRequiredService<DatabaseMigrationRunner>()
@@ -72,6 +76,7 @@ if (serveFrontend)
 
 // Explicit routing after static files; otherwise the catch-all SPA fallback endpoint
 // is selected first and static file middleware skips every request.
+app.UseMealBookProtection();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

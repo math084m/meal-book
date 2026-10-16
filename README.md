@@ -106,6 +106,7 @@ Signed-in users share one household plan (`/plan`). Add recipes with the "Add to
 
 - Realtime: every change calls Postgres `NOTIFY meal_plan_changed`; each API instance `LISTEN`s and pushes `planChanged` over SignalR (`/api/hubs/mealplan`), and clients refetch. This needs a direct (non-pooled) Postgres connection for LISTEN, and the proxy should allow WebSockets (SignalR falls back to SSE/long polling otherwise).
 - Suggestions: recipes sharing perishable ingredients with the plan score highest, rarer ingredients weigh more, and extra perishables are penalised. "Perishable" comes from the section (`ShopSections.Perishable`), so e.g. onions count as fresh.
+- Week view (`/plan/week`): pick a date range (up to 42 days, remembered per browser) and drag plan recipes onto days; on touch screens tap a recipe, then "Place here". A recipe can span 1-14 days (leftovers) and is scheduled with `PUT api/meal-plan/recipes/{id}/schedule` (`{ start: "yyyy-MM-dd" | null, days }`). Each recipe is in the plan once, so it has a single scheduled slot.
 
 ## Cook mode and favourites
 
@@ -192,6 +193,31 @@ fly storage create -a meal-book
 This sets `BUCKET_NAME`, `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID` and
 `AWS_SECRET_ACCESS_KEY` as secrets. For local development set the same
 variables (any S3-compatible store, e.g. MinIO) as environment variables.
+Alternatively set `ImageStorage__LocalPath` to store images on disk (docker
+compose uses the `mealbook-images` volume).
+
+## Scraping protection
+
+Recipes are public, so this is deterrence, not a vault:
+
+- Per-visitor rate limits (sliding windows, minute and day) for the API, images
+  and sign-in/registration; over the limit returns `429` with `Retry-After`.
+  `/api/health` is exempt. Tune with env vars such as
+  `Protection__Api__PerMinute`, `Protection__Api__PerDay`,
+  `Protection__Images__PerMinute`, `Protection__Auth__PerMinute`; switch off with
+  `Protection__RateLimitingEnabled=false`.
+- Requests with an empty or tool-like User-Agent (curl, python-requests, bots,
+  headless browsers) get `403` (`Protection__BlockAutomatedClients=false` to
+  disable). This only stops lazy bots; the recipe import endpoint and health check
+  are exempt.
+- The recipe list and dashboard return summaries only (counts, no ingredients or
+  steps), so a full dump needs one rate-limited request per recipe.
+- `X-Robots-Tag`, a robots meta tag and `robots.txt` ask crawlers and AI bots to
+  stay away. Crawlers read the root `robots.txt` of the main site, so add
+  `Disallow: /meal-book/` there too.
+- The client address comes from `X-Forwarded-For` (configurable with
+  `Protection__ClientIpHeader`, e.g. `Fly-Client-IP`), so the proxy in front must
+  forward it.
 
 ## AI-assisted recipe imports
 

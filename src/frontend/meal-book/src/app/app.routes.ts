@@ -12,6 +12,7 @@ export const routes: Routes = [
   { path: 'register', loadComponent: () => import('./register.component').then(m => m.RegisterComponent) },
   { path: 'history', loadComponent: () => import('./cooking-history.component').then(m => m.CookingHistoryComponent), canActivate: [userGuard] },
   { path: 'plan', loadComponent: () => import('./plan.component').then(m => m.PlanComponent), canActivate: [userGuard] },
+  { path: 'plan/week', loadComponent: () => import('./week-planner.component').then(m => m.WeekPlannerComponent), canActivate: [userGuard] },
   { path: 'admin/recipes/new', loadComponent: () => import('./admin-recipe-form.component').then(m => m.AdminRecipeFormComponent), canActivate: [adminGuard] },
   { path: 'admin/recipes/drafts', loadComponent: () => import('./admin-drafts.component').then(m => m.AdminDraftsComponent), canActivate: [adminGuard] },
   { path: 'admin/ingredients', loadComponent: () => import('./admin-ingredients.component').then(m => m.AdminIngredientsComponent), canActivate: [adminGuard] },

@@ -18,7 +18,9 @@ public sealed record PlanSourceEntry(
     int Servings,
     DateTimeOffset? ImageUpdatedAt,
     DateTimeOffset AddedAt,
-    IReadOnlyList<PlanSourceLine> Lines);
+    IReadOnlyList<PlanSourceLine> Lines,
+    DateOnly? PlannedStart = null,
+    int PlannedDays = 1);
 
 public sealed record PerishableUsage(
     Guid RecipeId,
@@ -78,6 +80,13 @@ public interface IMealPlanRepository
 
     Task<PlanChangeResult> RemoveAsync(Guid recipeId, CancellationToken cancellationToken);
 
+    // A null start unschedules the recipe.
+    Task<PlanChangeResult> ScheduleAsync(
+        Guid recipeId,
+        DateOnly? start,
+        int days,
+        CancellationToken cancellationToken);
+
     Task ClearAsync(CancellationToken cancellationToken);
 
     Task SetCheckedAsync(
@@ -106,7 +115,9 @@ public sealed record PlanEntryResponse(
     string RecipeName,
     string? ImageUrl,
     int Servings,
-    int RecipeServings);
+    int RecipeServings,
+    DateOnly? PlannedStart = null,
+    int PlannedDays = 1);
 
 public sealed record ShoppingItemResponse(
     Guid? IngredientId,
@@ -145,6 +156,15 @@ public sealed class PlanServingsRequest
 {
     [System.ComponentModel.DataAnnotations.Range(1, 100)]
     public int Servings { get; init; }
+}
+
+public sealed class PlanScheduleRequest
+{
+    // Null moves the recipe back to the unscheduled tray.
+    public DateOnly? Start { get; init; }
+
+    [System.ComponentModel.DataAnnotations.Range(1, 14)]
+    public int Days { get; init; } = 1;
 }
 
 public sealed class ShoppingCheckRequest
@@ -222,6 +242,8 @@ public interface IMealPlanService
     Task<bool> SetServingsAsync(Guid recipeId, int servings, CancellationToken cancellationToken);
 
     Task<bool> RemoveAsync(Guid recipeId, CancellationToken cancellationToken);
+
+    Task<bool> ScheduleAsync(Guid recipeId, DateOnly? start, int days, CancellationToken cancellationToken);
 
     Task ClearAsync(CancellationToken cancellationToken);
 

@@ -4,6 +4,7 @@ namespace MealBook.Domain.Planning;
 public sealed class MealPlanEntry
 {
     public const int MaxServings = 100;
+    public const int MaxPlannedDays = 14;
 
     private MealPlanEntry()
     {
@@ -15,7 +16,17 @@ public sealed class MealPlanEntry
     public string AddedByUserId { get; private set; } = string.Empty;
     public DateTimeOffset AddedAt { get; private set; }
 
+    // The first day the recipe is cooked or eaten, and how many days it covers (leftovers). Null means unscheduled.
+    public DateOnly? PlannedStart { get; private set; }
+    public int PlannedDays { get; private set; } = 1;
+
     public void SetServings(int servings) => Servings = Math.Clamp(servings, 1, MaxServings);
+
+    public void Schedule(DateOnly? start, int days)
+    {
+        PlannedStart = start;
+        PlannedDays = start is null ? 1 : Math.Clamp(days, 1, MaxPlannedDays);
+    }
 
     public static MealPlanEntry Create(Guid recipeId, int servings, string userId) =>
         new()

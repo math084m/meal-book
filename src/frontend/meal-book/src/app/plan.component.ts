@@ -21,6 +21,7 @@ import { formatTotal } from './servings-scaling';
             <span class="live-pill" [class.off]="!plan.live()">{{ plan.live() ? i18n.t('plan.live') : i18n.t('plan.reconnecting') }}</span>
           </p>
         </div>
+        <a routerLink="/plan/week" class="button secondary small">{{ i18n.t('week.open') }}</a>
       </div>
 
       @if (plan.plan(); as data) {

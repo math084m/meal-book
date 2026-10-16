@@ -85,7 +85,9 @@ public sealed class MealPlanService(
                 entry.RecipeName,
                 ImageUrl(entry.RecipeId, entry.ImageUpdatedAt),
                 entry.Servings,
-                entry.RecipeServings))
+                entry.RecipeServings,
+                entry.PlannedStart,
+                entry.PlannedDays))
             .ToArray();
         return new MealPlanResponse(entryResponses, responseSections);
     }
@@ -174,6 +176,13 @@ public sealed class MealPlanService(
 
     public async Task<bool> RemoveAsync(Guid recipeId, CancellationToken cancellationToken) =>
         await FinishAsync(await plan.RemoveAsync(recipeId, cancellationToken), cancellationToken);
+
+    public async Task<bool> ScheduleAsync(
+        Guid recipeId,
+        DateOnly? start,
+        int days,
+        CancellationToken cancellationToken) =>
+        await FinishAsync(await plan.ScheduleAsync(recipeId, start, days, cancellationToken), cancellationToken);
 
     public async Task ClearAsync(CancellationToken cancellationToken)
     {

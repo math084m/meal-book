@@ -41,6 +41,8 @@ export interface Recipe {
   displayLanguage: string;
   isTranslated: boolean;
   imageUrl?: string | null;
+  ingredientCount: number;
+  stepCount: number;
 }
 
 export interface RecipeSearch {

@@ -37,7 +37,7 @@ public sealed class RecipeService(
     {
         var recipes = await repository.GetAllAsync(search, cancellationToken);
         var map = await CreateMapperAsync(recipes, search.Lang, cancellationToken);
-        return recipes.Select(map).ToArray();
+        return recipes.Select(map).Select(ToSummary).ToArray();
     }
 
     public async Task<RecipeResponse?> GetByIdAsync(
@@ -68,10 +68,10 @@ public sealed class RecipeService(
             language,
             cancellationToken);
         return new RecipeDashboardResponse(
-            dashboard.RecentlyAdded.Select(map).ToArray(),
-            dashboard.MostCooked.Select(map).ToArray(),
+            dashboard.RecentlyAdded.Select(map).Select(ToSummary).ToArray(),
+            dashboard.MostCooked.Select(map).Select(ToSummary).ToArray(),
             dashboard.RecentlyCooked
-                .Select(item => new RecentlyCookedRecipeResponse(map(item.Recipe), item.CookedAt))
+                .Select(item => new RecentlyCookedRecipeResponse(ToSummary(map(item.Recipe)), item.CookedAt))
                 .ToArray());
     }
 
@@ -479,8 +479,15 @@ public sealed class RecipeService(
             content is not null,
             recipe.ImageUpdatedAt is { } imageUpdatedAt
                 ? $"recipes/{recipe.Id}/image?v={imageUpdatedAt.ToUnixTimeMilliseconds()}"
-                : null);
+                : null,
+            ingredients.Length,
+            recipe.Steps.Count);
     }
+
+    // Lists and the dashboard only carry what a card needs, so one request cannot dump the whole
+    // library. The full recipe has to be fetched one by one, which the rate limits cover.
+    private static RecipeResponse ToSummary(RecipeResponse recipe) =>
+        recipe with { Ingredients = [], Steps = [], Equipment = [], SourceUrl = null };
 
     // A stored translation is only used while it still matches the current recipe text.
     private static TranslatedContent? ReadContent(Recipe recipe, RecipeTranslation? translation)

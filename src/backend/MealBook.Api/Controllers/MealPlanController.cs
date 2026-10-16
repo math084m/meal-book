@@ -53,6 +53,17 @@ public sealed class MealPlanController(IMealPlanService plan) : ControllerBase
         CancellationToken cancellationToken) =>
         await plan.SetServingsAsync(recipeId, request.Servings, cancellationToken) ? NoContent() : NotFound();
 
+    [HttpPut("recipes/{recipeId:guid}/schedule")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Schedule(
+        Guid recipeId,
+        PlanScheduleRequest request,
+        CancellationToken cancellationToken) =>
+        await plan.ScheduleAsync(recipeId, request.Start, request.Days, cancellationToken)
+            ? NoContent()
+            : NotFound();
+
     [HttpDelete("recipes/{recipeId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

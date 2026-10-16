@@ -96,6 +96,7 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         planEntry.ToTable("MealPlanEntries");
         planEntry.HasKey(item => item.Id);
         planEntry.Property(item => item.AddedByUserId).HasMaxLength(450).IsRequired();
+        planEntry.Property(item => item.PlannedStart).HasColumnType("date");
         planEntry.HasIndex(item => item.RecipeId).IsUnique();
         planEntry.HasOne<Recipe>()
             .WithMany()

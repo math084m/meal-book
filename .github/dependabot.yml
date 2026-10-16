@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /src/backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /src/frontend/meal-book
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /src/backend
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /src/frontend/meal-book
+    schedule:
+      interval: monthly

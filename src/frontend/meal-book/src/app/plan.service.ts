@@ -11,6 +11,8 @@ export interface PlanEntry {
   imageUrl: string | null;
   servings: number;
   recipeServings: number;
+  plannedStart: string | null;
+  plannedDays: number;
 }
 
 export interface ShoppingItem {
@@ -96,6 +98,25 @@ export class PlanService {
       plan ? { ...plan, entries: plan.entries.map(e => (e.recipeId === recipeId ? { ...e, servings: value } : e)) } : plan
     );
     this.http.put(`${apiUrl}meal-plan/recipes/${recipeId}/servings`, { servings: value }).subscribe({
+      next: () => this.refresh(),
+      error: () => this.refresh()
+    });
+  }
+
+  // A null start moves the recipe back to the unscheduled tray.
+  schedule(recipeId: string, start: string | null, days = 1): void {
+    const value = Math.min(14, Math.max(1, Math.round(days)));
+    this.plan.update(plan =>
+      plan
+        ? {
+            ...plan,
+            entries: plan.entries.map(e =>
+              e.recipeId === recipeId ? { ...e, plannedStart: start, plannedDays: start ? value : 1 } : e
+            )
+          }
+        : plan
+    );
+    this.http.put(`${apiUrl}meal-plan/recipes/${recipeId}/schedule`, { start, days: value }).subscribe({
       next: () => this.refresh(),
       error: () => this.refresh()
     });

@@ -7,8 +7,8 @@ using Xunit;
 
 namespace MealBook.Api.IntegrationTests;
 
+[Collection(ApiCollection.Name)]
 public sealed class MealBookApiTests(MealBookApiFixture fixture)
-    : IClassFixture<MealBookApiFixture>
 {
     private readonly Guid tomatoId = LoadIngredientId(fixture, "Tomato");
     private readonly Guid onionId = LoadIngredientId(fixture, "Onion");
@@ -586,6 +586,78 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         var after = (await ReadJsonAsync(await client.GetAsync("/api/favorites"))).EnumerateArray()
             .Select(item => item.GetGuid()).ToList();
         Assert.DoesNotContain(published, after);
+    }
+
+    [Fact]
+    public async Task RecipeList_ReturnsSummaries_WhileTheDetailKeepsTheFullRecipe()
+    {
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+        var id = await CreatePlanRecipeAsync(client, "Summary only", 2, true, [(tomatoId, 1m, "piece")]);
+
+        using var anonymous = fixture.Factory.CreateClient();
+        var list = await ReadJsonAsync(await anonymous.GetAsync("/api/recipes"));
+        var listed = list.EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == id);
+        Assert.Equal(0, listed.GetProperty("ingredients").GetArrayLength());
+        Assert.Equal(0, listed.GetProperty("steps").GetArrayLength());
+        Assert.Equal(1, listed.GetProperty("ingredientCount").GetInt32());
+        Assert.True(listed.GetProperty("stepCount").GetInt32() > 0);
+
+        var detail = await ReadJsonAsync(await anonymous.GetAsync($"/api/recipes/{id}"));
+        Assert.Equal(1, detail.GetProperty("ingredients").GetArrayLength());
+        Assert.True(detail.GetProperty("steps").GetArrayLength() > 0);
+
+        var dashboard = await ReadJsonAsync(await anonymous.GetAsync("/api/recipes/dashboard"));
+        foreach (var recipe in dashboard.GetProperty("recentlyAdded").EnumerateArray())
+        {
+            Assert.Equal(0, recipe.GetProperty("ingredients").GetArrayLength());
+            Assert.Equal(0, recipe.GetProperty("steps").GetArrayLength());
+        }
+    }
+
+    [Fact]
+    public async Task MealPlan_RecipesCanBeScheduledAcrossDays_AndUnscheduled()
+    {
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+        using var cleared = await client.DeleteAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
+        var recipeId = await CreatePlanRecipeAsync(client, "Scheduled stew", 4, (tomatoId, 1m, "piece"));
+
+        using var notPlanned = await client.PutAsJsonAsync(
+            $"/api/meal-plan/recipes/{recipeId}/schedule",
+            new { start = "2026-10-20", days = 2 });
+        Assert.Equal(HttpStatusCode.NotFound, notPlanned.StatusCode);
+
+        using var added = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{recipeId}", new { });
+        Assert.Equal(HttpStatusCode.NoContent, added.StatusCode);
+        var initial = (await ReadJsonAsync(await client.GetAsync("/api/meal-plan?lang=en")))
+            .GetProperty("entries")[0];
+        Assert.Equal(JsonValueKind.Null, initial.GetProperty("plannedStart").ValueKind);
+        Assert.Equal(1, initial.GetProperty("plannedDays").GetInt32());
+
+        using var scheduled = await client.PutAsJsonAsync(
+            $"/api/meal-plan/recipes/{recipeId}/schedule",
+            new { start = "2026-10-20", days = 3 });
+        Assert.Equal(HttpStatusCode.NoContent, scheduled.StatusCode);
+        var entry = (await ReadJsonAsync(await client.GetAsync("/api/meal-plan?lang=en")))
+            .GetProperty("entries")[0];
+        Assert.Equal("2026-10-20", entry.GetProperty("plannedStart").GetString());
+        Assert.Equal(3, entry.GetProperty("plannedDays").GetInt32());
+
+        using var badDays = await client.PutAsJsonAsync(
+            $"/api/meal-plan/recipes/{recipeId}/schedule",
+            new { start = "2026-10-20", days = 15 });
+        Assert.Equal(HttpStatusCode.BadRequest, badDays.StatusCode);
+
+        using var unscheduled = await client.PutAsJsonAsync(
+            $"/api/meal-plan/recipes/{recipeId}/schedule",
+            new { start = (string?)null, days = 3 });
+        Assert.Equal(HttpStatusCode.NoContent, unscheduled.StatusCode);
+        var back = (await ReadJsonAsync(await client.GetAsync("/api/meal-plan?lang=en")))
+            .GetProperty("entries")[0];
+        Assert.Equal(JsonValueKind.Null, back.GetProperty("plannedStart").ValueKind);
+        Assert.Equal(1, back.GetProperty("plannedDays").GetInt32());
     }
 
     [Fact]
