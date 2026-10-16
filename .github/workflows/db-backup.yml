@@ -83,7 +83,7 @@ jobs:
           rm mealbook.dump
           echo "BACKUP_FILE=mealbook-$stamp.dump.gpg" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: mealbook-db-backup
           path: ${{ env.BACKUP_FILE }}
