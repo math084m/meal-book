@@ -165,6 +165,27 @@ public sealed class RecipeTerm
     public static RecipeTerm Create(string kind, string slug) => new() { Kind = kind, Slug = slug };
 }
 
+// A supermarket section used to group the shopping list (e.g. dairy, frozen).
+public sealed class ShopSection
+{
+    public const string DefaultSlug = "dry_goods";
+
+    private ShopSection()
+    {
+    }
+
+    public string Slug { get; private set; } = string.Empty;
+    public string NameEn { get; private set; } = string.Empty;
+    public string NameDa { get; private set; } = string.Empty;
+    public int Position { get; private set; }
+
+    // Perishable sections count as fast-spoiling when suggesting recipes.
+    public bool Perishable { get; private set; }
+
+    public string NameFor(string language) =>
+        language == "da" && !string.IsNullOrWhiteSpace(NameDa) ? NameDa : NameEn;
+}
+
 // A premade ingredient that recipes reference instead of free text.
 public sealed class Ingredient
 {
@@ -175,18 +196,26 @@ public sealed class Ingredient
     public Guid Id { get; private set; }
     public string NameEn { get; private set; } = string.Empty;
     public string NameDa { get; private set; } = string.Empty;
+    public string ShopSectionSlug { get; private set; } = ShopSection.DefaultSlug;
 
     public string NameFor(string language) =>
         language == "da" && !string.IsNullOrWhiteSpace(NameDa) ? NameDa : NameEn;
 
-    public void Rename(string nameEn, string nameDa)
+    public void Update(string nameEn, string nameDa, string shopSectionSlug)
     {
         NameEn = nameEn.Trim();
         NameDa = nameDa.Trim();
+        ShopSectionSlug = shopSectionSlug;
     }
 
-    public static Ingredient Create(string nameEn, string nameDa) =>
-        new() { Id = Guid.NewGuid(), NameEn = nameEn.Trim(), NameDa = nameDa.Trim() };
+    public static Ingredient Create(string nameEn, string nameDa, string shopSectionSlug) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            NameEn = nameEn.Trim(),
+            NameDa = nameDa.Trim(),
+            ShopSectionSlug = shopSectionSlug
+        };
 }
 
 public sealed class RecipeIngredient

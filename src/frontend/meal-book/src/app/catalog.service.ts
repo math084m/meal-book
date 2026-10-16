@@ -16,6 +16,15 @@ export interface CatalogIngredient {
   id: string;
   nameEn: string;
   nameDa: string;
+  shopSectionSlug: string;
+}
+
+export interface ShopSection {
+  slug: string;
+  nameEn: string;
+  nameDa: string;
+  position: number;
+  perishable: boolean;
 }
 
 export interface SelectOption {
@@ -33,7 +42,11 @@ export class CatalogService {
 
   readonly terms = signal<Term[]>([]);
   readonly ingredients = signal<CatalogIngredient[]>([]);
+  readonly shopSections = signal<ShopSection[]>([]);
 
+  readonly shopSectionOptions = computed<SelectOption[]>(() =>
+    this.shopSections().map(section => ({ value: section.slug, label: this.name(section) }))
+  );
   readonly ingredientOptions = computed<SelectOption[]>(() =>
     this.ingredients()
       .map(item => ({ value: item.id, label: this.name(item) }))
@@ -48,6 +61,9 @@ export class CatalogService {
       error: () => (this.loaded = false)
     });
     this.refreshIngredients();
+    this.http.get<ShopSection[]>(`${apiUrl}shop-sections`).subscribe({
+      next: sections => this.shopSections.set(sections)
+    });
   }
 
   refreshIngredients(): void {
@@ -71,15 +87,20 @@ export class CatalogService {
     return slugs.map(slug => this.label(kind, slug));
   }
 
-  createIngredient(nameEn: string, nameDa: string): Observable<CatalogIngredient> {
+  sectionLabel(slug: string): string {
+    const section = this.shopSections().find(item => item.slug === slug);
+    return section ? this.name(section) : slug;
+  }
+
+  createIngredient(nameEn: string, nameDa: string, shopSectionSlug: string): Observable<CatalogIngredient> {
     return this.http
-      .post<CatalogIngredient>(`${apiUrl}ingredients`, { nameEn, nameDa })
+      .post<CatalogIngredient>(`${apiUrl}ingredients`, { nameEn, nameDa, shopSectionSlug })
       .pipe(tap(() => this.refreshIngredients()));
   }
 
-  updateIngredient(id: string, nameEn: string, nameDa: string): Observable<CatalogIngredient> {
+  updateIngredient(id: string, nameEn: string, nameDa: string, shopSectionSlug: string): Observable<CatalogIngredient> {
     return this.http
-      .put<CatalogIngredient>(`${apiUrl}ingredients/${id}`, { nameEn, nameDa })
+      .put<CatalogIngredient>(`${apiUrl}ingredients/${id}`, { nameEn, nameDa, shopSectionSlug })
       .pipe(tap(() => this.refreshIngredients()));
   }
 

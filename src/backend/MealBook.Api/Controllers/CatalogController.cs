@@ -24,9 +24,24 @@ public sealed class CatalogController(ICatalogRepository catalog) : ControllerBa
         CancellationToken cancellationToken) =>
         Ok((await catalog.GetIngredientsAsync(cancellationToken)).Select(ToResponse).ToArray());
 
+    [HttpGet("shop-sections")]
+    [AllowAnonymous]
+    [ProducesResponseType<IReadOnlyList<ShopSectionResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ShopSectionResponse>>> GetShopSections(
+        CancellationToken cancellationToken) =>
+        Ok((await catalog.GetShopSectionsAsync(cancellationToken))
+            .Select(section => new ShopSectionResponse(
+                section.Slug,
+                section.NameEn,
+                section.NameDa,
+                section.Position,
+                section.Perishable))
+            .ToArray());
+
     [HttpPost("ingredients")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType<IngredientResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<IngredientResponse>> CreateIngredient(
         IngredientWriteRequest request,
@@ -37,8 +52,14 @@ public sealed class CatalogController(ICatalogRepository catalog) : ControllerBa
             return Conflict(new ProblemDetails { Title = "Ingredient already exists." });
         }
 
+        var section = await ResolveSectionAsync(request.ShopSectionSlug, cancellationToken);
+        if (section is null)
+        {
+            return BadRequest(new ProblemDetails { Title = "Unknown shop section." });
+        }
+
         var ingredient = await catalog.AddIngredientAsync(
-            Ingredient.Create(request.NameEn, request.NameDa),
+            Ingredient.Create(request.NameEn, request.NameDa, section),
             cancellationToken);
         return StatusCode(StatusCodes.Status201Created, ToResponse(ingredient));
     }
@@ -46,6 +67,7 @@ public sealed class CatalogController(ICatalogRepository catalog) : ControllerBa
     [HttpPut("ingredients/{id:guid}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType<IngredientResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<IngredientResponse>> UpdateIngredient(
@@ -58,7 +80,18 @@ public sealed class CatalogController(ICatalogRepository catalog) : ControllerBa
             return Conflict(new ProblemDetails { Title = "Ingredient already exists." });
         }
 
-        var ingredient = await catalog.UpdateIngredientAsync(id, request.NameEn, request.NameDa, cancellationToken);
+        var section = await ResolveSectionAsync(request.ShopSectionSlug, cancellationToken);
+        if (section is null)
+        {
+            return BadRequest(new ProblemDetails { Title = "Unknown shop section." });
+        }
+
+        var ingredient = await catalog.UpdateIngredientAsync(
+            id,
+            request.NameEn,
+            request.NameDa,
+            section,
+            cancellationToken);
         return ingredient is null ? NotFound() : Ok(ToResponse(ingredient));
     }
 
@@ -76,6 +109,13 @@ public sealed class CatalogController(ICatalogRepository catalog) : ControllerBa
             _ => NotFound()
         };
 
+    private async Task<string?> ResolveSectionAsync(string? slug, CancellationToken cancellationToken)
+    {
+        var wanted = string.IsNullOrWhiteSpace(slug) ? ShopSection.DefaultSlug : slug.Trim();
+        var sections = await catalog.GetShopSectionsAsync(cancellationToken);
+        return sections.Any(section => section.Slug == wanted) ? wanted : null;
+    }
+
     private static IngredientResponse ToResponse(Ingredient ingredient) =>
-        new(ingredient.Id, ingredient.NameEn, ingredient.NameDa);
+        new(ingredient.Id, ingredient.NameEn, ingredient.NameDa, ingredient.ShopSectionSlug);
 }

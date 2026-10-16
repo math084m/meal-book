@@ -79,6 +79,18 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         catalogIngredient.HasKey(item => item.Id);
         catalogIngredient.Property(item => item.NameEn).HasMaxLength(200).IsRequired();
         catalogIngredient.Property(item => item.NameDa).HasMaxLength(200).IsRequired();
+        catalogIngredient.Property(item => item.ShopSectionSlug).HasMaxLength(20).IsRequired();
+        catalogIngredient.HasOne<ShopSection>()
+            .WithMany()
+            .HasForeignKey(item => item.ShopSectionSlug)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var shopSection = modelBuilder.Entity<ShopSection>();
+        shopSection.ToTable("ShopSections");
+        shopSection.HasKey(item => item.Slug);
+        shopSection.Property(item => item.Slug).HasMaxLength(20);
+        shopSection.Property(item => item.NameEn).HasMaxLength(80).IsRequired();
+        shopSection.Property(item => item.NameDa).HasMaxLength(80).IsRequired();
 
         var term = modelBuilder.Entity<Term>();
         term.ToTable("Terms");

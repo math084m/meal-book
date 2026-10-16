@@ -104,6 +104,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
     public async Task<bool> UpdateAsync(Recipe recipe, CancellationToken cancellationToken)
     {
         var existing = await db.Recipes
+            .AsSplitQuery()
             .Include(item => item.Ingredients)
             .Include(item => item.Steps)
             .Include(item => item.Equipment)

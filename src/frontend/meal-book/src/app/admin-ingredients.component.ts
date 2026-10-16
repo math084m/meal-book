@@ -21,6 +21,13 @@ import { I18nService, TranslationKey } from './i18n.service';
       <label>{{ i18n.t('ingredients.nameDa') }}
         <input name="nameDa" [(ngModel)]="nameDa" required maxlength="200" />
       </label>
+      <label>{{ i18n.t('ingredients.section') }}
+        <select name="section" [(ngModel)]="section">
+          @for (option of catalog.shopSectionOptions(); track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </label>
       <div class="filter-actions">
         <button class="button" type="submit">{{ i18n.t('ingredients.add') }}</button>
       </div>
@@ -40,11 +47,17 @@ import { I18nService, TranslationKey } from './i18n.service';
             @if (editingId() === item.id) {
               <input name="editEn" [(ngModel)]="editEn" [attr.aria-label]="i18n.t('ingredients.nameEn')" />
               <input name="editDa" [(ngModel)]="editDa" [attr.aria-label]="i18n.t('ingredients.nameDa')" />
+              <select name="editSection" [(ngModel)]="editSection" [attr.aria-label]="i18n.t('ingredients.section')">
+                @for (option of catalog.shopSectionOptions(); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
               <button class="button small" type="button" (click)="saveEdit(item)">{{ i18n.t('ingredients.save') }}</button>
               <button class="button secondary small" type="button" (click)="editingId.set(null)">{{ i18n.t('common.cancel') }}</button>
             } @else {
               <span class="name">{{ item.nameEn }}</span>
               <span class="muted name">{{ item.nameDa }}</span>
+              <span class="section-tag">{{ catalog.sectionLabel(item.shopSectionSlug) }}</span>
               <button class="button secondary small" type="button" (click)="startEdit(item)">{{ i18n.t('detail.edit') }}</button>
               <button class="button danger small" type="button" (click)="remove(item)">{{ i18n.t('detail.delete') }}</button>
             }
@@ -57,22 +70,25 @@ import { I18nService, TranslationKey } from './i18n.service';
     .ingredient-filter { margin-bottom: 1rem; }
     .ingredient-admin-list { margin: 0; padding: 0; list-style: none; }
     .ingredient-admin-list li {
-      display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 0.6rem; align-items: center;
+      display: grid; grid-template-columns: 1fr 1fr 11rem auto auto; gap: 0.6rem; align-items: center;
       padding: 0.5rem 0; border-bottom: 1px solid var(--line);
     }
+    .section-tag { font-size: 0.85rem; color: var(--muted, inherit); }
   `
 })
 export class AdminIngredientsComponent {
   readonly i18n = inject(I18nService);
-  private readonly catalog = inject(CatalogService);
+  readonly catalog = inject(CatalogService);
 
   readonly error = signal<TranslationKey | null>(null);
   readonly filter = signal('');
   readonly editingId = signal<string | null>(null);
   nameEn = '';
   nameDa = '';
+  section = 'dry_goods';
   editEn = '';
   editDa = '';
+  editSection = 'dry_goods';
 
   readonly visible = computed(() => {
     const query = this.filter().trim().toLocaleLowerCase();
@@ -87,7 +103,7 @@ export class AdminIngredientsComponent {
 
   add(): void {
     this.error.set(null);
-    this.catalog.createIngredient(this.nameEn.trim(), this.nameDa.trim()).subscribe({
+    this.catalog.createIngredient(this.nameEn.trim(), this.nameDa.trim(), this.section).subscribe({
       next: () => {
         this.nameEn = '';
         this.nameDa = '';
@@ -100,11 +116,12 @@ export class AdminIngredientsComponent {
     this.editingId.set(item.id);
     this.editEn = item.nameEn;
     this.editDa = item.nameDa;
+    this.editSection = item.shopSectionSlug;
   }
 
   saveEdit(item: CatalogIngredient): void {
     this.error.set(null);
-    this.catalog.updateIngredient(item.id, this.editEn.trim(), this.editDa.trim()).subscribe({
+    this.catalog.updateIngredient(item.id, this.editEn.trim(), this.editDa.trim(), this.editSection).subscribe({
       next: () => this.editingId.set(null),
       error: (e: HttpErrorResponse) => this.fail(e)
     });

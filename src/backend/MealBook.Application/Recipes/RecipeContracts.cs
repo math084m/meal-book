@@ -180,10 +180,15 @@ public sealed record RecipeSuggestionResponse(Guid Id, string Name);
 
 public sealed record TermResponse(string Kind, string Slug, string NameEn, string NameDa);
 
-public sealed record IngredientResponse(Guid Id, string NameEn, string NameDa);
+public sealed record ShopSectionResponse(string Slug, string NameEn, string NameDa, int Position, bool Perishable);
+
+public sealed record IngredientResponse(Guid Id, string NameEn, string NameDa, string ShopSectionSlug);
 
 public sealed class IngredientWriteRequest
 {
+    [System.ComponentModel.DataAnnotations.StringLength(20)]
+    public string? ShopSectionSlug { get; init; }
+
     [System.ComponentModel.DataAnnotations.Required]
     [System.ComponentModel.DataAnnotations.StringLength(200, MinimumLength = 1)]
     public string NameEn { get; init; } = string.Empty;

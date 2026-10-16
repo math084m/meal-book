@@ -15,6 +15,8 @@ public interface ICatalogRepository
 
     Task<IReadOnlyList<Ingredient>> GetIngredientsAsync(CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ShopSection>> GetShopSectionsAsync(CancellationToken cancellationToken);
+
     Task<bool> IngredientNameExistsAsync(string nameEn, Guid? exceptId, CancellationToken cancellationToken);
 
     Task<Ingredient> AddIngredientAsync(Ingredient ingredient, CancellationToken cancellationToken);
@@ -23,6 +25,7 @@ public interface ICatalogRepository
         Guid id,
         string nameEn,
         string nameDa,
+        string shopSectionSlug,
         CancellationToken cancellationToken);
 
     Task<IngredientDeleteResult> DeleteIngredientAsync(Guid id, CancellationToken cancellationToken);

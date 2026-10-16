@@ -19,6 +19,12 @@ public sealed class CatalogRepository(RecipeDbContext db) : ICatalogRepository
             .OrderBy(item => item.NameEn)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ShopSection>> GetShopSectionsAsync(CancellationToken cancellationToken) =>
+        await db.Set<ShopSection>()
+            .AsNoTracking()
+            .OrderBy(section => section.Position)
+            .ToListAsync(cancellationToken);
+
     public Task<bool> IngredientNameExistsAsync(
         string nameEn,
         Guid? exceptId,
@@ -40,6 +46,7 @@ public sealed class CatalogRepository(RecipeDbContext db) : ICatalogRepository
         Guid id,
         string nameEn,
         string nameDa,
+        string shopSectionSlug,
         CancellationToken cancellationToken)
     {
         var ingredient = await db.Set<Ingredient>().SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -48,7 +55,7 @@ public sealed class CatalogRepository(RecipeDbContext db) : ICatalogRepository
             return null;
         }
 
-        ingredient.Rename(nameEn, nameDa);
+        ingredient.Update(nameEn, nameDa, shopSectionSlug);
         await db.SaveChangesAsync(cancellationToken);
         return ingredient;
     }
