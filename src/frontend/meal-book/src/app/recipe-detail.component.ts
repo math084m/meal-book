@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { I18nService, TranslationKey } from './i18n.service';
 import { Recipe, RecipeApiService } from './recipe-api.service';
 import { CatalogService } from './catalog.service';
+import { formatAmount } from './servings-scaling';
 
 @Component({
   standalone: true,
@@ -48,11 +49,20 @@ import { CatalogService } from './catalog.service';
           <section class="detail-card">
             <p class="eyebrow">{{ i18n.t('detail.needs') }}</p>
             <h2>{{ i18n.t('detail.ingredients') }}</h2>
+            <div class="servings-scaler">
+              <span class="servings-label">{{ i18n.t('detail.servings') }}</span>
+              <button type="button" class="button secondary" [attr.aria-label]="i18n.t('detail.servings.decrease')" [disabled]="servings() <= 1" (click)="changeServings(-1)">−</button>
+              <input type="number" min="1" max="100" step="1" [value]="servings()" [attr.aria-label]="i18n.t('detail.servings')" (change)="setServings($any($event.target))" />
+              <button type="button" class="button secondary" [attr.aria-label]="i18n.t('detail.servings.increase')" [disabled]="servings() >= 100" (click)="changeServings(1)">+</button>
+              @if (servings() !== item.servings) {
+                <button type="button" class="link-button" (click)="servings.set(item.servings)">{{ i18n.t('detail.servings.reset', { n: item.servings }) }}</button>
+              }
+            </div>
             @for (group of ingredientGroups(item.ingredients); track group.key) {
               @if (group.section) { <h3 class="ingredient-section-title">{{ group.section }}</h3> }
               <ul class="ingredient-list">
                 @for (ingredient of group.ingredients; track $index) {
-                  <li><strong>{{ ingredient.quantity }} {{ ingredient.unit }}</strong> {{ ingredient.name }}
+                  <li><strong>{{ amount(ingredient, item.servings) }}</strong> {{ ingredient.name }}
                     @if (ingredient.notes) { <span class="muted">— {{ ingredient.notes }}</span> }
                   </li>
                 }
@@ -128,6 +138,7 @@ export class RecipeDetailComponent {
   readonly error = signal<TranslationKey | null>(null);
   readonly message = signal<TranslationKey | null>(null);
   readonly saving = signal(false);
+  readonly servings = signal(1);
   rating: number | null = null;
   notes = '';
 
@@ -150,6 +161,27 @@ export class RecipeDetailComponent {
     return [...groups.values()];
   }
 
+  amount(ingredient: Recipe['ingredients'][number], baseServings: number): string {
+    return formatAmount(
+      ingredient.quantity,
+      ingredient.unit,
+      this.servings() / baseServings,
+      this.i18n.lang() === 'da' ? 'da' : 'en');
+  }
+
+  changeServings(delta: number): void {
+    this.servings.update(value => Math.min(100, Math.max(1, value + delta)));
+  }
+
+  setServings(input: HTMLInputElement): void {
+    const value = Math.round(Number(input.value));
+    if (Number.isFinite(value) && value >= 1) {
+      this.servings.set(Math.min(100, value));
+    }
+
+    input.value = String(this.servings());
+  }
+
   private load(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
@@ -158,6 +190,9 @@ export class RecipeDetailComponent {
     }
     this.api.getRecipe(id).subscribe({
       next: value => {
+        if (this.recipe()?.id !== value.id) {
+          this.servings.set(value.servings);
+        }
         this.recipe.set(value);
         this.error.set(null);
       },

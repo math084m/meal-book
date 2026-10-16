@@ -452,6 +452,41 @@ textarea:focus {
   list-style: none;
 }
 
+.servings-scaler {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.servings-scaler .servings-label {
+  margin-right: 0.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.servings-scaler .button {
+  min-width: 2.2rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.servings-scaler input {
+  width: 4rem;
+  text-align: center;
+}
+
+.servings-scaler .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .ingredient-list li,
 .plain-list li {
   padding: 0.7rem 0;

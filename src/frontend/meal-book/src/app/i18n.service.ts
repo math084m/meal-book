@@ -124,6 +124,10 @@ const en = {
 
   'detail.needs': 'WHAT YOU NEED',
   'detail.ingredients': 'Ingredients',
+  'detail.servings': 'Servings',
+  'detail.servings.decrease': 'Fewer servings',
+  'detail.servings.increase': 'More servings',
+  'detail.servings.reset': 'Reset to {n}',
   'detail.equipment': 'Equipment',
   'detail.nutrition': 'Nutrition per serving',
   'detail.protein': '{n}g protein',
@@ -376,6 +380,10 @@ const da: Record<TranslationKey, string> = {
 
   'detail.needs': 'DET HAR DU BRUG FOR',
   'detail.ingredients': 'Ingredienser',
+  'detail.servings': 'Portioner',
+  'detail.servings.decrease': 'Færre portioner',
+  'detail.servings.increase': 'Flere portioner',
+  'detail.servings.reset': 'Nulstil til {n}',
   'detail.equipment': 'Udstyr',
   'detail.nutrition': 'Næringsindhold pr. portion',
   'detail.protein': '{n} g protein',
