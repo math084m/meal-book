@@ -2,8 +2,15 @@ import { formatAmount, formatFriendly } from './servings-scaling';
 
 describe('servings scaling', () => {
   it('shows the stored amount untouched at factor 1', () => {
-    expect(formatAmount(22, 'ml', 1, 'en')).toBe('22 ml');
-    expect(formatAmount(2.5, 'ml', 1, 'en')).toBe('2.5 ml');
+    expect(formatAmount(70, 'g', 1, 'en')).toBe('70 g');
+    expect(formatAmount(50, 'ml', 1, 'en')).toBe('50 ml');
+    expect(formatAmount(3, 'tsp', 1, 'en')).toBe('3 tsp');
+  });
+
+  it('shows ml amounts as spoons at the original servings when they fit', () => {
+    expect(formatAmount(2.5, 'ml', 1, 'en')).toBe('½ tsp');
+    expect(formatAmount(15, 'ml', 1, 'en')).toBe('1 tbsp');
+    expect(formatAmount(30, 'ml', 1, 'da')).toBe('2 spsk');
   });
 
   it('picks the unit closest to a whole number', () => {

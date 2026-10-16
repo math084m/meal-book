@@ -85,7 +85,7 @@ export function formatFriendly(value: number, language: AmountLanguage): string 
 }
 
 // Picks the unit where the amount lands closest to a whole number, then a half, then a quarter.
-function volumeText(ml: number, language: AmountLanguage): string {
+function bestVolumeFit(ml: number, language: AmountLanguage): string | null {
   let best: { rank: number; text: string } | null = null;
   for (const unit of displayUnits) {
     if (unit.languages && !unit.languages.includes(language)) {
@@ -110,8 +110,13 @@ function volumeText(ml: number, language: AmountLanguage): string {
     }
   }
 
-  if (best) {
-    return best.text;
+  return best ? best.text : null;
+}
+
+function volumeText(ml: number, language: AmountLanguage): string {
+  const fit = bestVolumeFit(ml, language);
+  if (fit) {
+    return fit;
   }
 
   const rounded = ml < 20 ? Math.round(ml) : Math.round(ml / 5) * 5;
@@ -131,7 +136,9 @@ function weightText(grams: number, language: AmountLanguage): string {
 export function formatAmount(quantity: number, unit: string, factor: number, language: AmountLanguage): string {
   const key = unit.trim().toLowerCase();
   if (factor === 1) {
-    return `${formatNumber(quantity, language, 3)} ${unit}`.trim();
+    // Amounts stored in ml (e.g. 2.5 ml) read better as spoons when they fit; other units stay as written.
+    const spoonFit = key === 'ml' ? bestVolumeFit(quantity, language) : null;
+    return spoonFit ?? `${formatNumber(quantity, language, 3)} ${unit}`.trim();
   }
 
   const scaled = quantity * factor;
