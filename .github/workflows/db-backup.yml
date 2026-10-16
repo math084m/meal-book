@@ -1,0 +1,91 @@
+name: Database backup
+
+# Daily logical dump of the production Postgres (Fly app meal-book-db), verified by restoring it into a
+# throwaway Postgres, encrypted, and stored as a workflow artifact. A failed run emails the repo owner.
+#
+# Required repository secrets (see README, "Backups"):
+#   FLY_BACKUP_TOKEN        Fly token with access to meal-book-db (fly tokens create deploy -a meal-book-db)
+#   BACKUP_DATABASE_URL     the production DATABASE_URL (host is replaced by the local proxy)
+#   BACKUP_PASSPHRASE       passphrase used to encrypt the dump (keep a copy outside GitHub!)
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      verify:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: restore_check
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d restore_check"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Dump production database
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_BACKUP_TOKEN }}
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          nohup flyctl proxy 15432:5432 -a meal-book-db > proxy.log 2>&1 &
+          for _ in $(seq 1 30); do
+            (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null && break
+            sleep 1
+          done
+          (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null || { cat proxy.log; exit 1; }
+
+          local_url=$(printf '%s' "$BACKUP_DATABASE_URL" | sed -E 's#@[^/@]+/#@127.0.0.1:15432/#')
+          echo "::add-mask::$local_url"
+          docker run --rm --network host postgres:18-alpine \
+            pg_dump --format=custom --no-owner --no-privileges "$local_url" > mealbook.dump
+          ls -l mealbook.dump
+
+      - name: Verify the dump restores
+        run: |
+          set -euo pipefail
+          docker run --rm --network host -v "$PWD:/backup:ro" postgres:18-alpine \
+            pg_restore --no-owner --no-privileges --exit-on-error \
+            -d postgresql://postgres:postgres@127.0.0.1:5432/restore_check /backup/mealbook.dump
+          ingredients=$(docker run --rm --network host postgres:18-alpine \
+            psql -At postgresql://postgres:postgres@127.0.0.1:5432/restore_check \
+            -c 'select count(*) from "Ingredients"')
+          echo "Restored ingredients: $ingredients"
+          test "$ingredients" -gt 0
+
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y%m%d-%H%M%S)
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 -o "mealbook-$stamp.dump.gpg" mealbook.dump
+          rm mealbook.dump
+          echo "BACKUP_FILE=mealbook-$stamp.dump.gpg" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mealbook-db-backup
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error

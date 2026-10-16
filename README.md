@@ -120,6 +120,41 @@ region. Set `ConnectionStrings__MealBook` as a Fly secret to your managed
 PostgreSQL connection string, or attach a Fly Postgres database that provides a
 `DATABASE_URL` URI. The API reads either setting and applies Migr8 SQL migrations at startup.
 
+## Backups and monitoring
+
+Production Postgres is the single-node Fly app `meal-book-db`. Two layers protect it:
+
+1. **Fly volume snapshots** (automatic, daily). Raise the retention from the default 5 days:
+   `fly volumes list -a meal-book-db`, then `fly volumes update <volume-id> --snapshot-retention 14 -a meal-book-db`.
+2. **Off-Fly logical dump** (`.github/workflows/db-backup.yml`, daily 02:17 UTC, or run it from the
+   Actions tab). It opens a `fly proxy` to `meal-book-db`, runs `pg_dump`, restores the dump into a
+   throwaway Postgres to prove it works, encrypts it with GPG (AES-256) and uploads it as the
+   `mealbook-db-backup` artifact, kept for 30 days. A failed run emails the repository owner.
+
+Set up the three repository secrets once (Settings, Secrets and variables, Actions):
+
+```powershell
+# Token that can reach the database app; the deploy token is scoped to meal-book only.
+fly tokens create deploy -a meal-book-db   # -> FLY_BACKUP_TOKEN
+# The production connection string, as the API sees it -> BACKUP_DATABASE_URL
+fly ssh console -a meal-book -C "printenv DATABASE_URL"
+# Any long random passphrase -> BACKUP_PASSPHRASE. Store a copy in your password manager:
+# without it the backups cannot be decrypted.
+```
+
+Restore (into any Postgres 16+ database):
+
+```powershell
+gpg --decrypt mealbook-YYYYMMDD-HHMMSS.dump.gpg > mealbook.dump
+pg_restore --no-owner --no-privileges --clean --if-exists -d "<target connection string>" mealbook.dump
+```
+
+Cover images live in Tigris, not in the database, so they are not part of the dump. The database
+and bucket are separate failure domains; keep the dump and bucket in step when restoring.
+
+`.github/workflows/uptime.yml` calls `/meal-book/api/health` every 30 minutes and fails (and emails)
+when the site is down. Fly also health-checks `/api/health` itself and restarts unhealthy machines.
+
 ## Languages (English / Danish)
 
 The UI is available in English and Danish (switcher in the top bar; defaults to

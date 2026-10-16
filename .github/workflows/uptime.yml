@@ -1,0 +1,21 @@
+name: Uptime check
+
+# Pings the public health endpoint; a failing run emails the repo owner. GitHub cron is best-effort,
+# so runs can be delayed by several minutes.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check /api/health
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 10 --max-time 20 \
+            https://funch-thomassen.com/meal-book/api/health
