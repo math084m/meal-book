@@ -160,6 +160,32 @@ nav a.active {
   text-overflow: ellipsis;
 }
 
+.menu-name {
+  max-width: 240px;
+  margin: 0;
+  padding: 0.5rem 0.65rem 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+}
+
+.display-name-banner {
+  margin: 0 0 1rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--rating);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 0.9rem;
+
+  a {
+    color: var(--green);
+    font-weight: 700;
+  }
+}
+
 .menu-field {
   display: flex;
   flex-direction: column;

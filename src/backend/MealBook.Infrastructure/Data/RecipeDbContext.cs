@@ -8,6 +8,8 @@ namespace MealBook.Infrastructure.Data;
 
 public sealed class AppUser : IdentityUser
 {
+    // Public name shown on comments. Null for accounts created before display names existed.
+    public string? DisplayName { get; set; }
 }
 
 public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
@@ -20,6 +22,8 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AppUser>().Property(item => item.DisplayName).HasMaxLength(30);
 
         var recipe = modelBuilder.Entity<Recipe>();
         recipe.ToTable("Recipes");
@@ -145,6 +149,26 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
             .WithMany()
             .HasForeignKey(item => item.RecipeId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var comment = modelBuilder.Entity<MealBook.Domain.Comments.RecipeComment>();
+        comment.ToTable("RecipeComments");
+        comment.HasKey(item => item.Id);
+        comment.Property(item => item.UserId).HasMaxLength(450).IsRequired();
+        comment.Property(item => item.Body).HasMaxLength(MealBook.Domain.Comments.RecipeComment.MaxBodyLength).IsRequired();
+        comment.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(item => item.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        comment.HasOne<Recipe>()
+            .WithMany()
+            .HasForeignKey(item => item.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        comment.HasIndex(item => new { item.RecipeId, item.CreatedAt });
+        comment.HasOne<MealBook.Domain.Comments.RecipeComment>()
+            .WithMany()
+            .HasForeignKey(item => item.ParentId)
+            .OnDelete(DeleteBehavior.Cascade);
+        comment.Ignore(item => item.IsDeleted);
 
         var term = modelBuilder.Entity<Term>();
         term.ToTable("Terms");

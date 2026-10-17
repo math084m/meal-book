@@ -248,11 +248,12 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
 
     public async Task<IReadOnlyList<RecipeCookedResponse>> GetCookHistoryAsync(
         string userId,
+        Guid? recipeId,
         CancellationToken cancellationToken) =>
         await (
             from log in db.RecipeCookLogs.AsNoTracking()
             join recipe in db.Recipes.AsNoTracking() on log.RecipeId equals recipe.Id
-            where log.UserId == userId
+            where log.UserId == userId && (recipeId == null || log.RecipeId == recipeId)
             orderby log.CookedAt descending
             select new RecipeCookedResponse(
                 log.Id,
@@ -262,6 +263,33 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
                 log.Rating,
                 log.Notes))
             .ToListAsync(cancellationToken);
+
+    public async Task<RecipeCookedResponse?> UpdateCookLogAsync(
+        Guid logId,
+        string userId,
+        LogRecipeCookedRequest request,
+        CancellationToken cancellationToken)
+    {
+        var log = await db.RecipeCookLogs
+            .SingleOrDefaultAsync(item => item.Id == logId && item.UserId == userId, cancellationToken);
+        if (log is null)
+        {
+            return null;
+        }
+
+        log.Update(request.Rating, request.Notes);
+        await db.SaveChangesAsync(cancellationToken);
+        var recipeName = await db.Recipes
+            .Where(recipe => recipe.Id == log.RecipeId)
+            .Select(recipe => recipe.Name)
+            .SingleAsync(cancellationToken);
+        return new RecipeCookedResponse(log.Id, log.RecipeId, recipeName, log.CookedAt, log.Rating, log.Notes);
+    }
+
+    public async Task<bool> DeleteCookLogAsync(Guid logId, string userId, CancellationToken cancellationToken) =>
+        await db.RecipeCookLogs
+            .Where(item => item.Id == logId && item.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken) > 0;
 
     public async Task<RecipeDashboardData> GetDashboardAsync(CancellationToken cancellationToken)
     {

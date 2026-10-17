@@ -4,16 +4,19 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService, TranslationKey } from './i18n.service';
-import { Recipe, RecipeApiService } from './recipe-api.service';
+import { CookLog, Recipe, RecipeApiService } from './recipe-api.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
 import { CatalogService } from './catalog.service';
 import { formatAmount } from './servings-scaling';
 import { PlanButtonComponent } from './plan-button.component';
 import { FavoriteButtonComponent } from './favorite-button.component';
+import { StarRatingComponent } from './star-rating.component';
+import { CookLogEntryComponent } from './cook-log-entry.component';
+import { RecipeCommentsComponent } from './recipe-comments.component';
 
 @Component({
   standalone: true,
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, RecipeImagePipe, PlanButtonComponent, FavoriteButtonComponent],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, RecipeImagePipe, PlanButtonComponent, FavoriteButtonComponent, StarRatingComponent, CookLogEntryComponent, RecipeCommentsComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @if (recipe(); as item) {
@@ -104,24 +107,31 @@ import { FavoriteButtonComponent } from './favorite-button.component';
         <section class="cook-panel">
           <div><p class="eyebrow">{{ i18n.t('detail.madeThis') }}</p><h2>{{ i18n.t('detail.logCook') }}</h2><p class="muted">{{ i18n.t('detail.logCookHelp') }}</p></div>
           <form (ngSubmit)="logCooked()">
-            <label>{{ i18n.t('detail.rating') }}
-              <select name="rating" [(ngModel)]="rating">
-                <option [ngValue]="null">{{ i18n.t('detail.rating.skip') }}</option>
-                <option [ngValue]="5">{{ i18n.t('detail.rating.5') }}</option>
-                <option [ngValue]="4">{{ i18n.t('detail.rating.4') }}</option>
-                <option [ngValue]="3">{{ i18n.t('detail.rating.3') }}</option>
-                <option [ngValue]="2">{{ i18n.t('detail.rating.2') }}</option>
-                <option [ngValue]="1">{{ i18n.t('detail.rating.1') }}</option>
-              </select>
-            </label>
+            <div class="field">
+              <span class="rating-label" aria-hidden="true">{{ i18n.t('detail.rating') }}</span>
+              <app-star-rating [(value)]="rating" />
+              <span class="field-hint">{{ i18n.t('stars.hint') }}</span>
+            </div>
             <label>{{ i18n.t('detail.notes') }}
-              <input name="notes" [(ngModel)]="notes" maxlength="1000" [placeholder]="i18n.t('detail.notes.placeholder')" />
+              <textarea name="notes" rows="2" [(ngModel)]="notes" maxlength="1000" [placeholder]="i18n.t('detail.notes.placeholder')"></textarea>
             </label>
             <button class="button" type="submit" [disabled]="saving()">@if (saving()) { <span class="spinner" aria-hidden="true"></span> }{{ i18n.t('detail.cooked') }}</button>
           </form>
           @if (message()) { <p class="success-message" role="status">{{ i18n.t(message()!) }}</p> }
           @if (error()) { <p class="error-message" role="alert">{{ i18n.t(error()!) }}</p> }
         </section>
+        @if (myCooks().length) {
+          <section class="my-cooks" aria-labelledby="my-cooks-title">
+            <h2 id="my-cooks-title">{{ i18n.t('detail.myCooks') }}</h2>
+            <p class="muted">{{ i18n.t('detail.myCooks.help') }}</p>
+            <div class="history-list">
+              @for (entry of myCooks(); track entry.id) {
+                <app-cook-log-entry [entry]="entry" [showRecipe]="false" (changed)="refreshCooks()" (deleted)="refreshCooks()" />
+              }
+            </div>
+          </section>
+        }
+        <app-recipe-comments [recipeId]="item.id" />
       } @else {
         <p class="muted sign-in-note"><a routerLink="/login">{{ i18n.t('detail.signInLink') }}</a>{{ i18n.t('detail.signInNote.after') }}</p>
       }
@@ -168,6 +178,7 @@ export class RecipeDetailComponent {
   readonly deleteRequested = signal(false);
   readonly deleting = signal(false);
   readonly deleteError = signal<TranslationKey | null>(null);
+  readonly myCooks = signal<CookLog[]>([]);
   rating: number | null = null;
   notes = '';
 
@@ -224,8 +235,25 @@ export class RecipeDetailComponent {
         }
         this.recipe.set(value);
         this.error.set(null);
+        this.loadMyCooks(value.id);
       },
       error: () => this.error.set('detail.notFoundShort')
+    });
+  }
+
+  // Re-reads the recipe too, so the cook count and average rating reflect the change.
+  refreshCooks(): void {
+    this.load();
+  }
+
+  private loadMyCooks(recipeId: string): void {
+    if (!this.auth.token()) {
+      this.myCooks.set([]);
+      return;
+    }
+    this.api.getCookHistory(recipeId).subscribe({
+      next: logs => this.myCooks.set(logs),
+      error: () => this.myCooks.set([])
     });
   }
 
@@ -238,6 +266,9 @@ export class RecipeDetailComponent {
       next: () => {
         this.saving.set(false);
         this.message.set('detail.cookSaved');
+        this.rating = null;
+        this.notes = '';
+        this.refreshCooks();
       },
       error: () => {
         this.saving.set(false);

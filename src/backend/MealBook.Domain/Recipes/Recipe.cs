@@ -123,8 +123,17 @@ public sealed class RecipeCookLog
             UserId = userId,
             CookedAt = DateTimeOffset.UtcNow,
             Rating = rating,
-            Notes = notes?.Trim()
+            Notes = NormalizeNotes(notes)
         };
+
+    public void Update(int? rating, string? notes)
+    {
+        Rating = rating;
+        Notes = NormalizeNotes(notes);
+    }
+
+    private static string? NormalizeNotes(string? notes) =>
+        string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
 }
 
 public static class TermKinds

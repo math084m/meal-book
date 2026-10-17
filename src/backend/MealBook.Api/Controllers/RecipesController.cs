@@ -48,6 +48,7 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
     [Authorize]
     [ProducesResponseType<IReadOnlyList<RecipeCookedResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<RecipeCookedResponse>>> GetCookHistory(
+        [FromQuery] Guid? recipeId,
         CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -56,7 +57,41 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
             return Unauthorized();
         }
 
-        return Ok(await recipes.GetCookHistoryAsync(userId, cancellationToken));
+        return Ok(await recipes.GetCookHistoryAsync(userId, recipeId, cancellationToken));
+    }
+
+    [HttpPut("cooking-history/{logId:guid}")]
+    [Authorize]
+    [ProducesResponseType<RecipeCookedResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<RecipeCookedResponse>> UpdateCookLog(
+        Guid logId,
+        LogRecipeCookedRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var entry = await recipes.UpdateCookLogAsync(logId, userId, request, cancellationToken);
+        return entry is null ? NotFound() : Ok(entry);
+    }
+
+    [HttpDelete("cooking-history/{logId:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteCookLog(Guid logId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        return await recipes.DeleteCookLogAsync(logId, userId, cancellationToken) ? NoContent() : NotFound();
     }
 
     [HttpGet("{id:guid}")]

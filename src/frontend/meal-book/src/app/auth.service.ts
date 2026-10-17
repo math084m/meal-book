@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 export interface CurrentUser {
   id: string;
   email: string;
+  displayName: string | null;
   isAdmin: boolean;
 }
 
@@ -28,8 +29,14 @@ export class AuthService {
     }
   }
 
-  register(email: string, password: string): Observable<unknown> {
-    return this.http.post(`${this.apiUrl}register`, { email, password });
+  register(email: string, displayName: string, password: string): Observable<unknown> {
+    return this.http.post(`${this.apiUrl}register`, { email, displayName, password });
+  }
+
+  updateProfile(displayName: string): Observable<CurrentUser> {
+    return this.http.put<CurrentUser>(`${this.apiUrl}profile`, { displayName }).pipe(
+      tap(user => this.currentUser.set(user))
+    );
   }
 
   login(email: string, password: string): Observable<CurrentUser> {

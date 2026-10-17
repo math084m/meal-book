@@ -270,8 +270,19 @@ public sealed class RecipeService(
 
     public Task<IReadOnlyList<RecipeCookedResponse>> GetCookHistoryAsync(
         string userId,
+        Guid? recipeId,
         CancellationToken cancellationToken) =>
-        repository.GetCookHistoryAsync(userId, cancellationToken);
+        repository.GetCookHistoryAsync(userId, recipeId, cancellationToken);
+
+    public Task<RecipeCookedResponse?> UpdateCookLogAsync(
+        Guid logId,
+        string userId,
+        LogRecipeCookedRequest request,
+        CancellationToken cancellationToken) =>
+        repository.UpdateCookLogAsync(logId, userId, request, cancellationToken);
+
+    public Task<bool> DeleteCookLogAsync(Guid logId, string userId, CancellationToken cancellationToken) =>
+        repository.DeleteCookLogAsync(logId, userId, cancellationToken);
 
     private async Task TranslateAsync(Recipe recipe, CancellationToken cancellationToken)
     {

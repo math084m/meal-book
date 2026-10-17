@@ -47,7 +47,8 @@ export class AppComponent implements OnInit {
   }
 
   initial(): string {
-    return (this.auth.currentUser()?.email ?? '?').charAt(0).toUpperCase();
+    const user = this.auth.currentUser();
+    return (user?.displayName || user?.email || '?').charAt(0).toUpperCase();
   }
 
   signOut(): void {
