@@ -66,6 +66,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
                 .ThenByDescending(view => view.CookCount)
                 .ToArray(),
             "rating" => views.OrderByDescending(view => view.AverageRating ?? 0)
+                .ThenByDescending(view => view.RatingCount)
                 .ThenBy(view => view.Recipe.Name).ToArray(),
             "quickest" => views.OrderBy(view => view.Recipe.PrepTimeMinutes + view.Recipe.CookTimeMinutes)
                 .ThenBy(view => view.Recipe.Name).ToArray(),
@@ -337,6 +338,7 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
                 RecipeId = group.Key,
                 CookCount = group.Count(),
                 RecentCookCount = group.Count(log => log.CookedAt >= recentThreshold),
+                RatingCount = group.Count(log => log.Rating != null),
                 AverageRating = group.Where(log => log.Rating != null)
                     .Average(log => (double?)log.Rating)
             })
@@ -349,7 +351,8 @@ public sealed class RecipeRepository(RecipeDbContext db) : IRecipeRepository
                 recipe,
                 values?.CookCount ?? 0,
                 values?.AverageRating,
-                values?.RecentCookCount ?? 0);
+                values?.RecentCookCount ?? 0,
+                values?.RatingCount ?? 0);
         }).ToList();
     }
 

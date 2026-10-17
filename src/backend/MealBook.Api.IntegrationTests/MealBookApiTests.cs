@@ -428,6 +428,33 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task TopRatedSort_PrefersMoreRatings_AndRatingCountIgnoresUnratedCooks()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var prefix = $"Toprated{Guid.NewGuid():N}"[..20];
+        var fewRatings = await CreatePlanRecipeAsync(admin, $"{prefix} A", 2, (tomatoId, 1m, "piece"));
+        var manyRatings = await CreatePlanRecipeAsync(admin, $"{prefix} B", 2, (tomatoId, 1m, "piece"));
+
+        using var cook = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(cook, UniqueDisplayName());
+        foreach (var (recipe, rating) in new (Guid, int?)[]
+                 {
+                     (fewRatings, 5), (fewRatings, null), (manyRatings, 5), (manyRatings, 5)
+                 })
+        {
+            using var logged = await cook.PostAsJsonAsync($"/api/recipes/{recipe}/cooked", new { rating });
+            Assert.Equal(HttpStatusCode.Created, logged.StatusCode);
+        }
+
+        var list = (await ReadJsonAsync(await cook.GetAsync($"/api/recipes?search={prefix}&sort=rating")))
+            .EnumerateArray().ToArray();
+        Assert.Equal([manyRatings, fewRatings], list.Select(item => item.GetProperty("id").GetGuid()));
+        Assert.Equal([2, 1], list.Select(item => item.GetProperty("ratingCount").GetInt32()));
+        Assert.Equal([2, 2], list.Select(item => item.GetProperty("cookCount").GetInt32()));
+    }
+
+    [Fact]
     public async Task Admin_CanCreateRecipe_WithIngredientSections()
     {
         using var client = fixture.Factory.CreateClient();

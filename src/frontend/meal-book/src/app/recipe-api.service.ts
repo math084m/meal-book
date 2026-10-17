@@ -33,6 +33,7 @@ export interface Recipe {
   cookCount: number;
   recentCookCount: number;
   averageRating?: number | null;
+  ratingCount: number;
   tags: string[];
   ingredients: RecipeIngredient[];
   steps: string[];

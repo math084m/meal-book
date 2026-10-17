@@ -58,4 +58,5 @@ public sealed record RecipeView(
     Recipe Recipe,
     int CookCount,
     double? AverageRating,
-    int RecentCookCount = 0);
+    int RecentCookCount = 0,
+    int RatingCount = 0);

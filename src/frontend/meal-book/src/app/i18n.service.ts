@@ -200,7 +200,7 @@ const en = {
   'list.found': '{n} found',
   'list.error': 'Could not load recipes. Please try again.',
   'list.descriptionFallback': 'A recipe worth keeping.',
-  'list.ratingCooks': '({n} cooks)',
+  'list.ratingCount': '({n} ratings)',
   'list.empty': 'No recipes match these filters. Try broadening your search.',
   'list.loading': 'Loading recipes…',
 
@@ -581,7 +581,7 @@ const da: Record<TranslationKey, string> = {
   'list.found': '{n} fundet',
   'list.error': 'Opskrifterne kunne ikke indlæses. Prøv igen.',
   'list.descriptionFallback': 'En opskrift værd at gemme.',
-  'list.ratingCooks': '({n} gange lavet)',
+  'list.ratingCount': '({n} bedømmelser)',
   'list.empty': 'Ingen opskrifter matcher disse filtre. Prøv at udvide din søgning.',
   'list.loading': 'Indlæser opskrifter…',
 
