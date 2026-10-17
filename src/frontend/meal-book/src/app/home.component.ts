@@ -69,13 +69,12 @@ import { CatalogService } from './catalog.service';
       @if (dashboard(); as data) {
       <section class="dashboard-section">
         <div class="section-heading">
-          <div><p class="eyebrow">{{ i18n.t('home.recently.eyebrow') }}</p><h2>{{ i18n.t('home.recently.title') }}</h2></div>
+          <h2>{{ i18n.t('home.recently.title') }}</h2>
         </div>
         @if (data.recentlyCooked.length) {
           <div class="recipe-grid compact">
             @for (item of data.recentlyCooked; track item.cookedAt + item.recipe.id) {
               <a class="recipe-card" [routerLink]="['/recipes', item.recipe.id]">
-                <p class="eyebrow">{{ i18n.t('home.recently.card') }}</p>
                 <h3>{{ item.recipe.name }}</h3>
                 <p class="recipe-meta">{{ item.cookedAt | date:'mediumDate' }}</p>
               </a>
@@ -88,7 +87,7 @@ import { CatalogService } from './catalog.service';
 
       <section class="dashboard-section">
         <div class="section-heading">
-          <div><p class="eyebrow">{{ i18n.t('home.added.eyebrow') }}</p><h2>{{ i18n.t('home.added.title') }}</h2></div>
+          <h2>{{ i18n.t('home.added.title') }}</h2>
           <a routerLink="/recipes">{{ i18n.t('home.added.browse') }}</a>
         </div>
         @if (data.recentlyAdded.length) {
@@ -112,7 +111,7 @@ import { CatalogService } from './catalog.service';
 
       <section class="dashboard-section">
         <div class="section-heading">
-          <div><p class="eyebrow">{{ i18n.t('home.favorites.eyebrow') }}</p><h2>{{ i18n.t('home.favorites.title') }}</h2></div>
+          <h2>{{ i18n.t('home.favorites.title') }}</h2>
         </div>
         @if (data.mostCooked.length) {
           <div class="recipe-grid">
