@@ -82,13 +82,13 @@ import { SelectFieldComponent } from './select-field.component';
                 <label>{{ i18n.t('form.quantity') }} <input [name]="'ingredientQty' + ingredientIndex(section, ingredient)" type="number" min="0.001" step="0.001" [(ngModel)]="ingredient.quantity" required /></label>
                 <div class="ingredient-unit">
                   <label>{{ i18n.t('form.unit') }}
-                    <select [name]="'ingredientUnit' + ingredientIndex(section, ingredient)" [ngModel]="unitChoice(ingredient.unit)" (ngModelChange)="setUnit(ingredient, $event)" required>
+                    <select [name]="'ingredientUnit' + ingredientIndex(section, ingredient)" [ngModel]="unitChoice(ingredient)" (ngModelChange)="setUnit(ingredient, $event)" required>
                       <option value="">{{ i18n.t('form.selectUnit') }}</option>
                       @for (unit of units; track unit) { <option [value]="unit">{{ unit }}</option> }
                       <option [value]="otherUnit">{{ i18n.t('form.otherUnit') }}</option>
                     </select>
                   </label>
-                  @if (unitChoice(ingredient.unit) === otherUnit) {
+                  @if (unitChoice(ingredient) === otherUnit) {
                     <label>{{ i18n.t('form.customUnit') }} <input [name]="'ingredientCustomUnit' + ingredientIndex(section, ingredient)" [(ngModel)]="ingredient.unit" required /></label>
                   }
                 </div>
@@ -256,14 +256,21 @@ export class AdminRecipeFormComponent implements OnInit {
     ingredient.name = this.catalog.ingredientOptions().find(option => option.value === id)?.label ?? '';
   }
 
-  unitChoice(unit: string): string {
+  // Rows where "Other" was picked keep showing the free-text field, even while it is still empty.
+  private readonly customUnitRows = new WeakSet<RecipeIngredient>();
+
+  unitChoice(ingredient: RecipeIngredient): string {
+    if (this.customUnitRows.has(ingredient)) return this.otherUnit;
+    const unit = ingredient.unit;
     return this.units.includes(unit) ? unit : unit ? this.otherUnit : '';
   }
 
   setUnit(ingredient: RecipeIngredient, choice: string): void {
     if (choice === this.otherUnit) {
+      this.customUnitRows.add(ingredient);
       if (this.units.includes(ingredient.unit)) ingredient.unit = '';
     } else {
+      this.customUnitRows.delete(ingredient);
       ingredient.unit = choice;
     }
   }

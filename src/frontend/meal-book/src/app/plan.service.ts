@@ -15,15 +15,29 @@ export interface PlanEntry {
   plannedDays: number;
 }
 
+export interface ShoppingAmount {
+  quantity: number;
+  unit: string;
+}
+
+export interface ShoppingSource {
+  recipe: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface ShoppingItem {
   ingredientId: string | null;
   name: string;
+  // Key for checks and "have". A line mixing units that cannot be added is quantity 1, unit "mixed".
   quantity: number;
   unit: string;
   checked: boolean;
   have: number;
   recipes: string[];
   customId: string | null;
+  amounts?: ShoppingAmount[] | null;
+  sources?: ShoppingSource[] | null;
 }
 
 export interface ShoppingSection {

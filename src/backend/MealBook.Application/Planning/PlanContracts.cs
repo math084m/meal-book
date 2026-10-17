@@ -119,6 +119,13 @@ public sealed record PlanEntryResponse(
     DateOnly? PlannedStart = null,
     int PlannedDays = 1);
 
+public sealed record ShoppingAmountResponse(decimal Quantity, string Unit);
+
+// One recipe's contribution to a shopping line, scaled to the planned servings in the recipe's own unit.
+public sealed record ShoppingSourceResponse(string Recipe, decimal Quantity, string Unit);
+
+// Quantity and Unit identify the line for checks and "have" amounts. A line whose units cannot be
+// added together (e.g. grams and cans) uses PlanUnits.Mixed with a quantity of 1, so "have" is a share.
 public sealed record ShoppingItemResponse(
     Guid? IngredientId,
     string Name,
@@ -127,7 +134,9 @@ public sealed record ShoppingItemResponse(
     bool Checked,
     decimal Have,
     IReadOnlyList<string> Recipes,
-    Guid? CustomId = null);
+    Guid? CustomId = null,
+    IReadOnlyList<ShoppingAmountResponse>? Amounts = null,
+    IReadOnlyList<ShoppingSourceResponse>? Sources = null);
 
 public sealed record ShoppingSectionResponse(
     string Slug,

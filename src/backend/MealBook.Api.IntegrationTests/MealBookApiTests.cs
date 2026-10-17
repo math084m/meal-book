@@ -430,6 +430,54 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task MealPlan_MergesIncompatibleUnitsIntoOneShoppingLine_WithSources()
+    {
+        using var client = fixture.Factory.CreateClient();
+        await SignInAdminAsync(client);
+        using var cleared = await client.DeleteAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
+
+        var volume = await CreatePlanRecipeAsync(client, "Mixed A", 2, (tomatoId, 2m, "dl"));
+        var pieces = await CreatePlanRecipeAsync(client, "Mixed B", 2, (tomatoId, 1m, "piece"));
+        using var addVolume = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{volume}", new { });
+        Assert.Equal(HttpStatusCode.NoContent, addVolume.StatusCode);
+        using var addPieces = await client.PutAsJsonAsync($"/api/meal-plan/recipes/{pieces}", new { servings = 4 });
+        Assert.Equal(HttpStatusCode.NoContent, addPieces.StatusCode);
+
+        static JsonElement[] TomatoLines(JsonElement plan) => plan.GetProperty("sections").EnumerateArray()
+            .SelectMany(section => section.GetProperty("items").EnumerateArray())
+            .Where(item => item.GetProperty("name").GetString() == "Tomato")
+            .ToArray();
+
+        var tomato = Assert.Single(TomatoLines(await ReadJsonAsync(await client.GetAsync("/api/meal-plan?lang=en"))));
+        Assert.Equal("mixed", tomato.GetProperty("unit").GetString());
+        Assert.Equal(1m, tomato.GetProperty("quantity").GetDecimal());
+        var amounts = tomato.GetProperty("amounts").EnumerateArray()
+            .ToDictionary(amount => amount.GetProperty("unit").GetString()!, amount => amount.GetProperty("quantity").GetDecimal());
+        Assert.Equal(200m, amounts["ml"]);
+        Assert.Equal(2m, amounts["piece"]);
+        var sources = tomato.GetProperty("sources").EnumerateArray()
+            .ToDictionary(source => source.GetProperty("recipe").GetString()!.Split(' ')[1], source => source.GetProperty("quantity").GetDecimal());
+        Assert.Equal(2m, sources["A"]);
+        Assert.Equal(2m, sources["B"]);
+
+        using var have = await client.PutAsJsonAsync(
+            "/api/meal-plan/have",
+            new { ingredientId = tomatoId, unit = "mixed", quantity = 0.5m });
+        Assert.Equal(HttpStatusCode.NoContent, have.StatusCode);
+        using var check = await client.PutAsJsonAsync(
+            "/api/meal-plan/checks",
+            new { ingredientId = tomatoId, unit = "mixed", @checked = true });
+        Assert.Equal(HttpStatusCode.NoContent, check.StatusCode);
+        var updated = Assert.Single(TomatoLines(await ReadJsonAsync(await client.GetAsync("/api/meal-plan"))));
+        Assert.Equal(0.5m, updated.GetProperty("have").GetDecimal());
+        Assert.True(updated.GetProperty("checked").GetBoolean());
+
+        using var clearedAgain = await client.DeleteAsync("/api/meal-plan");
+        Assert.Equal(HttpStatusCode.NoContent, clearedAgain.StatusCode);
+    }
+
+    [Fact]
     public async Task MealPlan_AggregatesShoppingListBySection_TracksChecks_AndSuggestsRecipes()
     {
         using var anonymous = fixture.Factory.CreateClient();

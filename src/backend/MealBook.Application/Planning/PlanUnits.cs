@@ -3,6 +3,9 @@ namespace MealBook.Application.Planning;
 // Merges compatible units so that "1 dl" and "2 tbsp" of the same ingredient become one shopping line.
 public static class PlanUnits
 {
+    // Key unit for a shopping line that combines amounts in units that cannot be converted.
+    public const string Mixed = "mixed";
+
     private static readonly Dictionary<string, decimal> MillilitresPerUnit = new(StringComparer.OrdinalIgnoreCase)
     {
         ["pinch"] = 0.3125m,

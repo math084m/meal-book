@@ -18,22 +18,24 @@ public sealed class MealPlanService(
         var customItems = await plan.GetCustomItemsAsync(cancellationToken);
         var sections = await catalog.GetShopSectionsAsync(cancellationToken);
 
-        var totals = new Dictionary<(string Key, string Unit), Total>();
+        var totals = new Dictionary<string, Total>();
         foreach (var entry in entries)
         {
             var factor = (decimal)entry.Servings / Math.Max(entry.RecipeServings, 1);
             foreach (var line in entry.Lines)
             {
-                var (quantity, unit) = PlanUnits.Normalize(line.Quantity * factor, line.Unit);
-                var key = (line.IngredientId?.ToString() ?? "name:" + line.Name.Trim().ToLowerInvariant(), unit);
+                var scaled = line.Quantity * factor;
+                var (quantity, unit) = PlanUnits.Normalize(scaled, line.Unit);
+                var key = line.IngredientId?.ToString() ?? "name:" + line.Name.Trim().ToLowerInvariant();
                 if (!totals.TryGetValue(key, out var total))
                 {
                     var name = lang == "da" && !string.IsNullOrWhiteSpace(line.NameDa) ? line.NameDa : line.Name;
-                    total = new Total(line.IngredientId, name, unit, line.SectionSlug);
+                    total = new Total(line.IngredientId, name, line.SectionSlug);
                     totals[key] = total;
                 }
 
-                total.Quantity += quantity;
+                total.Add(quantity, unit);
+                total.Sources.Add(new ShoppingSourceResponse(entry.RecipeName, Math.Round(scaled, 3), line.Unit.Trim()));
                 if (!total.Recipes.Contains(entry.RecipeName))
                 {
                     total.Recipes.Add(entry.RecipeName);
@@ -47,18 +49,29 @@ public sealed class MealPlanService(
             var items = totals.Values
                 .Where(total => total.SectionSlug == section.Slug)
                 .OrderBy(total => total.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ThenBy(total => total.Unit)
-                .Select(total => new ShoppingItemResponse(
-                    total.IngredientId,
-                    total.Name,
-                    Math.Round(total.Quantity, 3),
-                    total.Unit,
-                    total.IngredientId is { } id && checks.Contains(new ShoppingCheckKey(id, total.Unit)),
-                    total.IngredientId is { } haveId
-                        && haves.TryGetValue(new ShoppingCheckKey(haveId, total.Unit), out var have)
-                            ? have
-                            : 0m,
-                    total.Recipes))
+                .Select(total =>
+                {
+                    var amounts = total.Amounts
+                        .Select(amount => new ShoppingAmountResponse(Math.Round(amount.Value, 3), amount.Key))
+                        .ToArray();
+                    var (quantity, unit) = amounts.Length == 1
+                        ? (amounts[0].Quantity, amounts[0].Unit)
+                        : (1m, PlanUnits.Mixed);
+                    return new ShoppingItemResponse(
+                        total.IngredientId,
+                        total.Name,
+                        quantity,
+                        unit,
+                        total.IngredientId is { } id && checks.Contains(new ShoppingCheckKey(id, unit)),
+                        total.IngredientId is { } haveId
+                            && haves.TryGetValue(new ShoppingCheckKey(haveId, unit), out var have)
+                                ? Math.Min(have, quantity)
+                                : 0m,
+                        total.Recipes,
+                        null,
+                        amounts,
+                        total.Sources);
+                })
                 .Concat(customItems
                     .Where(item => item.SectionSlug == section.Slug)
                     .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -275,13 +288,28 @@ public sealed class MealPlanService(
             ? $"recipes/{recipeId}/image?v={updated.ToUnixTimeMilliseconds()}"
             : null;
 
-    private sealed class Total(Guid? ingredientId, string name, string unit, string sectionSlug)
+    private sealed class Total(Guid? ingredientId, string name, string sectionSlug)
     {
         public Guid? IngredientId { get; } = ingredientId;
         public string Name { get; } = name;
-        public string Unit { get; } = unit;
         public string SectionSlug { get; } = sectionSlug;
-        public decimal Quantity { get; set; }
+
+        // Normalised unit -> summed quantity, in first-seen order.
+        public List<KeyValuePair<string, decimal>> Amounts { get; } = [];
+        public List<ShoppingSourceResponse> Sources { get; } = [];
         public List<string> Recipes { get; } = [];
+
+        public void Add(decimal quantity, string unit)
+        {
+            var index = Amounts.FindIndex(amount => amount.Key == unit);
+            if (index < 0)
+            {
+                Amounts.Add(new(unit, quantity));
+            }
+            else
+            {
+                Amounts[index] = new(unit, Amounts[index].Value + quantity);
+            }
+        }
     }
 }

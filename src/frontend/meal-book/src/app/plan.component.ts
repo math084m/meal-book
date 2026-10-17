@@ -5,7 +5,7 @@ import { CatalogService } from './catalog.service';
 import { I18nService } from './i18n.service';
 import { MealPlan, PlanService, ShoppingItem } from './plan.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
-import { formatTotal } from './servings-scaling';
+import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopping-amounts';
 
 @Component({
   selector: 'app-plan',
@@ -120,6 +120,9 @@ import { formatTotal } from './servings-scaling';
                           @if (item.customId ? item.quantity > 0 || item.unit : true) {
                             <span class="shop-qty">{{ amount(item) }}@if (item.have > 0) { · {{ remaining(item) }} }</span>
                           }
+                          @if ((item.sources?.length ?? 0) > 1) {
+                            <span class="shop-sources">{{ sources(item) }}</span>
+                          }
                         </span>
                       </label>
                       @if (item.ingredientId) {
@@ -172,6 +175,7 @@ import { formatTotal } from './servings-scaling';
     .shop-text { display: flex; flex-direction: column; min-width: 0; }
     .shop-name { font-weight: 600; }
     .shop-qty { font-size: 0.85rem; color: var(--muted); }
+    .shop-sources { font-size: 0.75rem; color: var(--muted); font-style: italic; }
     .shop-list li.done .shop-name { text-decoration: line-through; color: var(--muted); }
     .have-select { flex: none; width: auto; min-height: 0; padding: 0.25rem 0.4rem; font-size: 0.82rem; color: var(--muted); }
     .plan-head .link-button { background: none; border: 0; padding: 0; color: var(--green); font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
@@ -194,7 +198,11 @@ export class PlanComponent {
   customSection = 'nonfood';
 
   amount(item: ShoppingItem): string {
-    return item.customId ? this.customAmount(item) : formatTotal(item.quantity, item.unit, this.i18n.lang());
+    return item.customId ? this.customAmount(item) : shoppingAmountText(item, this.i18n.lang());
+  }
+
+  sources(item: ShoppingItem): string {
+    return shoppingSourcesText(item.sources, this.i18n.lang());
   }
 
   private customAmount(item: ShoppingItem): string {
@@ -228,7 +236,7 @@ export class PlanComponent {
           .map(item => {
             const left = item.customId
               ? this.customAmount(item)
-              : formatTotal(item.quantity - item.have, item.unit, this.i18n.lang());
+              : shoppingAmountText(item, this.i18n.lang(), remainingShare(item));
             return `- ${left ? left + ' ' : ''}${item.name}`;
           });
         return lines.length ? `${section.name}\n${lines.join('\n')}` : '';
@@ -273,10 +281,10 @@ export class PlanComponent {
   }
 
   remaining(item: ShoppingItem): string {
-    const left = item.quantity - item.have;
-    return left <= 0
+    const share = remainingShare(item);
+    return share <= 0
       ? this.i18n.t('plan.have.enough')
-      : this.i18n.t('plan.have.buy', { amount: formatTotal(left, item.unit, this.i18n.lang()) });
+      : this.i18n.t('plan.have.buy', { amount: shoppingAmountText(item, this.i18n.lang(), share) });
   }
 
   toggle(item: ShoppingItem, event: Event): void {
