@@ -228,6 +228,10 @@ footer {
   font-size: 0.84rem;
 }
 
+footer a {
+  color: inherit;
+}
+
 @media (max-width: 760px) {
   .page-shell {
     width: min(100% - 2rem, 1180px);
