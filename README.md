@@ -121,6 +121,15 @@ region. Set `ConnectionStrings__MealBook` as a Fly secret to your managed
 PostgreSQL connection string, or attach a Fly Postgres database that provides a
 `DATABASE_URL` URI. The API reads either setting and applies Migr8 SQL migrations at startup.
 
+## CI and pull requests
+
+`.github/workflows/ci.yml` builds and tests the backend (against a Postgres service) and the
+frontend (`ng build` + Karma in ChromeHeadless). It runs on every pull request to `main` and is
+reused by `deploy.yml`, so a push to `main` deploys only after the same checks pass.
+
+`main` is protected: changes go through a feature branch and a pull request that needs one
+approving review and green **Backend build and tests** and **Frontend build and tests** checks.
+
 ## Backups and monitoring
 
 Production Postgres is the single-node Fly app `meal-book-db`. Two layers protect it:
