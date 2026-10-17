@@ -477,7 +477,8 @@ h2 {
   padding: 1.25rem;
 }
 
-label {
+label,
+.rating-label {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -892,6 +893,138 @@ textarea:focus {
 
 .form-actions {
   justify-content: flex-end;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.cook-panel .field,
+.cook-log-edit .field {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: start;
+}
+
+.entry-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.4rem;
+}
+
+.entry-actions .link-button,
+.recipe-comments .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.entry-actions .link-button:hover {
+  color: var(--green);
+}
+
+.entry-actions .danger-link:hover {
+  color: var(--danger-ink);
+}
+
+.inline-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.cook-log-edit {
+  display: grid;
+  flex: 1;
+  gap: 0.8rem;
+}
+
+.cook-log-notes {
+  white-space: pre-line;
+}
+
+.my-cooks,
+.recipe-comments {
+  margin: 2rem 0;
+}
+
+.recipe-comments h2 {
+  margin-bottom: 1rem;
+}
+
+.comment-form {
+  display: grid;
+  gap: 0.7rem;
+  margin-bottom: 1.5rem;
+}
+
+.comment-form .button {
+  justify-self: start;
+}
+
+.comment-list,
+.comment-replies {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment-thread {
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.comment-replies {
+  margin-top: 0.8rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--line);
+}
+
+.comment-replies .comment-form,
+.reply-form {
+  margin: 0.8rem 0 0;
+}
+
+.comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.comment-meta time {
+  color: var(--muted);
+}
+
+.comment-body {
+  margin: 0.35rem 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.comment-deleted {
+  margin: 0;
+  font-style: italic;
+}
+
+.comment-name-prompt {
+  margin-bottom: 1.5rem;
 }
 
 @media (max-width: 760px) {

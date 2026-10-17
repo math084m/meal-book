@@ -1,12 +1,11 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { CookLogEntryComponent } from './cook-log-entry.component';
 import { CookLog, RecipeApiService } from './recipe-api.service';
 import { I18nService } from './i18n.service';
 
 @Component({
   standalone: true,
-  imports: [DatePipe, RouterLink],
+  imports: [CookLogEntryComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <section class="page-heading">
@@ -21,14 +20,7 @@ import { I18nService } from './i18n.service';
       @if (logs.length) {
         <div class="history-list">
           @for (entry of logs; track entry.id) {
-            <article class="history-entry">
-              <div>
-                <p class="eyebrow">{{ entry.cookedAt | date:'longDate' }}</p>
-                <h2><a [routerLink]="['/recipes', entry.recipeId]">{{ entry.recipeName }}</a></h2>
-                @if (entry.notes) { <p class="muted">{{ entry.notes }}</p> }
-              </div>
-              @if (entry.rating) { <span class="rating">★ {{ entry.rating }} / 5</span> }
-            </article>
+            <app-cook-log-entry [entry]="entry" (changed)="replace($event)" (deleted)="remove($event)" />
           }
         </div>
       } @else {
@@ -51,5 +43,13 @@ export class CookingHistoryComponent implements OnInit {
       next: logs => this.entries.set(logs),
       error: () => this.error.set(true)
     });
+  }
+
+  replace(updated: CookLog): void {
+    this.entries.update(logs => logs?.map(log => (log.id === updated.id ? updated : log)) ?? null);
+  }
+
+  remove(id: string): void {
+    this.entries.update(logs => logs?.filter(log => log.id !== id) ?? null);
   }
 }

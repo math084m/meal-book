@@ -27,13 +27,17 @@
       }
 
       <div class="menu">
-        <button class="menu-trigger avatar" type="button" aria-haspopup="menu" [attr.aria-expanded]="openMenu() === 'account'" [attr.aria-label]="i18n.t('nav.account')" [title]="auth.currentUser()?.email ?? i18n.t('nav.account')" (click)="toggleMenu('account')">
+        <button class="menu-trigger avatar" type="button" aria-haspopup="menu" [attr.aria-expanded]="openMenu() === 'account'" [attr.aria-label]="i18n.t('nav.account')" [title]="auth.currentUser()?.displayName || auth.currentUser()?.email || i18n.t('nav.account')" (click)="toggleMenu('account')">
           @if (auth.currentUser()) { {{ initial() }} } @else { ⚙ }
         </button>
         @if (openMenu() === 'account') {
           <div class="menu-panel right" role="menu">
             @if (auth.currentUser()) {
+              @if (auth.currentUser()?.displayName) {
+                <p class="menu-name">{{ auth.currentUser()?.displayName }}</p>
+              }
               <p class="menu-email">{{ auth.currentUser()?.email }}</p>
+              <a class="menu-item" role="menuitem" routerLink="/profile">{{ i18n.t('nav.profile') }}</a>
             }
             <label class="menu-field">{{ i18n.t('lang.aria') }}
               <select class="lang-switch" [value]="i18n.lang()" (change)="setLanguage($event)">
@@ -55,6 +59,11 @@
   </header>
 
   <main>
+    @if (auth.currentUser() && !auth.currentUser()?.displayName) {
+      <p class="display-name-banner" role="status">
+        {{ i18n.t('profile.banner') }} <a routerLink="/profile">{{ i18n.t('profile.banner.link') }}</a>
+      </p>
+    }
     <router-outlet />
   </main>
 

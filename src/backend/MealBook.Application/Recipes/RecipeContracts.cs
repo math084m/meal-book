@@ -230,17 +230,3 @@ public sealed class LogRecipeCookedRequest
     [System.ComponentModel.DataAnnotations.StringLength(1000)]
     public string? Notes { get; init; }
 }
-
-public sealed record CurrentUserResponse(string Id, string Email, bool IsAdmin);
-
-public sealed class RegisterRequest
-{
-    [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.EmailAddress]
-    [System.ComponentModel.DataAnnotations.StringLength(256)]
-    public string Email { get; init; } = string.Empty;
-
-    [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.StringLength(128, MinimumLength = 10)]
-    public string Password { get; init; } = string.Empty;
-}

@@ -64,9 +64,15 @@ with `Ctrl+C`, or run `docker compose down`; the database volume is preserved.
 - `POST /api/recipe-imports` imports a structured recipe as an unpublished draft
   using the server-to-server `X-Recipe-Import-Key` header.
 - `POST /api/recipes/{id}/cooked` logs a cook and optional 1–5 rating (signed in).
-- `POST /api/auth/register` creates a standard user; ASP.NET Core Identity
-  endpoints at `/api/identity` provide login/token management.
-- `GET /api/auth/me` returns the signed-in account.
+- `GET /api/recipes/cooking-history[?recipeId=]` lists your own cooks;
+  `PUT` and `DELETE /api/recipes/cooking-history/{logId}` edit or remove one of them.
+- `GET` and `POST /api/recipes/{id}/comments`, `PUT` and `DELETE /api/comments/{id}`
+  read and write recipe comments (signed in; see below).
+- `POST /api/auth/register` creates a standard user (`email`, `displayName`,
+  `password`); ASP.NET Core Identity endpoints at `/api/identity` provide
+  login/token management.
+- `GET /api/auth/me` returns the signed-in account; `PUT /api/auth/profile`
+  changes its display name.
 
 Recipes, ingredients, ordered cooking steps, and equipment are stored in
 PostgreSQL. SQL files in `src/backend/MealBook.Infrastructure/Migrations` are the schema
@@ -112,6 +118,13 @@ Signed-in users share one household plan (`/plan`). Add recipes with the "Add to
 
 - **Cook mode** (`/recipes/:id/cook`, "Start cooking" on the recipe page): one big step at a time, previous/next buttons, arrow keys and swipe, an ingredients panel scaled to the chosen servings, and an optional timer when a step mentions a duration ("10 minutes", "2 timer"). The screen is kept awake via the Screen Wake Lock API where supported.
 - **Favourites** are personal (per user): a star on recipe cards and the detail page, plus a "Favourites only" filter on the recipe list. API: `GET api/favorites`, `PUT|DELETE api/favorites/{recipeId}` (migration `0025`).
+
+## Ratings, notes and comments
+
+- **Cooks and ratings:** "I cooked this" logs a cook with an optional 1–5 star rating and a private note. Your past cooks of a recipe are listed under the log form and on `/history`, where you can edit or delete them; the recipe's average rating and cook count follow automatically.
+- **Display names:** required at registration, 2–30 characters (letters, numbers, and inner spaces, dots, dashes or apostrophes), unique ignoring case. Accounts created before display names existed (including the seeded admin) are asked to pick one on `/profile`.
+- **Comments:** public to signed-in users, below each published recipe. Threads are one level deep: replying to a reply joins the same thread. Authors edit their own comments; authors and admins can delete. A deleted comment that still has replies stays as a "Comment deleted" placeholder until the last reply is gone. Posting without a display name returns `409`.
+- Schema: migration `0031` adds `AspNetUsers.DisplayName` and the `RecipeComments` table.
 
 ## Fly.io and a `/meals/` subroute
 

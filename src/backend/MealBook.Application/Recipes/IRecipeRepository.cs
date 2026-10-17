@@ -39,7 +39,17 @@ public interface IRecipeRepository
 
     Task<IReadOnlyList<RecipeCookedResponse>> GetCookHistoryAsync(
         string userId,
+        Guid? recipeId,
         CancellationToken cancellationToken);
+
+    // Null when the entry does not exist or belongs to someone else.
+    Task<RecipeCookedResponse?> UpdateCookLogAsync(
+        Guid logId,
+        string userId,
+        LogRecipeCookedRequest request,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeleteCookLogAsync(Guid logId, string userId, CancellationToken cancellationToken);
 
     Task<RecipeDashboardData> GetDashboardAsync(CancellationToken cancellationToken);
 }

@@ -160,9 +160,12 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         var email = $"user-{Guid.NewGuid():N}@mealbook.test";
         const string password = "UserPassword123";
 
+        var displayName = UniqueDisplayName();
+
         using var registration = await client.PostAsJsonAsync("/api/auth/register", new
         {
             email,
+            displayName,
             password
         });
         Assert.Equal(HttpStatusCode.OK, registration.StatusCode);
@@ -180,9 +183,248 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         Assert.Equal(HttpStatusCode.OK, currentUser.StatusCode);
         using var userBody = JsonDocument.Parse(await currentUser.Content.ReadAsStringAsync());
         Assert.False(userBody.RootElement.GetProperty("isAdmin").GetBoolean());
+        Assert.Equal(displayName, userBody.RootElement.GetProperty("displayName").GetString());
 
         using var createRecipe = await client.PostAsJsonAsync("/api/recipes", ValidRecipe());
         Assert.Equal(HttpStatusCode.Forbidden, createRecipe.StatusCode);
+    }
+
+    [Fact]
+    public async Task Registration_RequiresAValidDisplayName_ThatIsUniqueIgnoringCase()
+    {
+        using var client = fixture.Factory.CreateClient();
+        var taken = UniqueDisplayName();
+        await RegisterAndSignInAsync(fixture.Factory.CreateClient(), taken);
+
+        using var missing = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = $"user-{Guid.NewGuid():N}@mealbook.test",
+            password = "UserPassword123"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        Assert.True((await ReadJsonAsync(missing)).GetProperty("errors").TryGetProperty("displayName", out _));
+
+        using var invalid = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = $"user-{Guid.NewGuid():N}@mealbook.test",
+            displayName = "<script>",
+            password = "UserPassword123"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+        using var duplicate = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = $"user-{Guid.NewGuid():N}@mealbook.test",
+            displayName = taken.ToUpperInvariant(),
+            password = "UserPassword123"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
+        Assert.True((await ReadJsonAsync(duplicate)).GetProperty("errors").TryGetProperty("displayNameTaken", out _));
+    }
+
+    [Fact]
+    public async Task Profile_UpdatesTheDisplayName_AndRejectsNamesTakenByOthers()
+    {
+        using var anonymous = fixture.Factory.CreateClient();
+        using var denied = await anonymous.PutAsJsonAsync("/api/auth/profile", new { displayName = "Nobody" });
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        var other = UniqueDisplayName();
+        await RegisterAndSignInAsync(fixture.Factory.CreateClient(), other);
+        using var client = fixture.Factory.CreateClient();
+        var original = UniqueDisplayName();
+        await RegisterAndSignInAsync(client, original);
+
+        var renamed = UniqueDisplayName();
+        using var update = await client.PutAsJsonAsync("/api/auth/profile", new { displayName = $"  {renamed}  " });
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(renamed, (await ReadJsonAsync(update)).GetProperty("displayName").GetString());
+        var me = await ReadJsonAsync(await client.GetAsync("/api/auth/me"));
+        Assert.Equal(renamed, me.GetProperty("displayName").GetString());
+
+        using var sameNameDifferentCase = await client.PutAsJsonAsync(
+            "/api/auth/profile",
+            new { displayName = renamed.ToUpperInvariant() });
+        Assert.Equal(HttpStatusCode.OK, sameNameDifferentCase.StatusCode);
+
+        using var takenByOther = await client.PutAsJsonAsync("/api/auth/profile", new { displayName = other });
+        Assert.Equal(HttpStatusCode.BadRequest, takenByOther.StatusCode);
+    }
+
+    [Fact]
+    public async Task Comments_AreVisibleToSignedInUsers_AndOnlyTheAuthorCanEdit()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var recipe = await CreatePlanRecipeAsync(admin, "Commented", 2, (tomatoId, 1m, "piece"));
+        var draft = await CreatePlanRecipeAsync(admin, "Commented draft", 2, (tomatoId, 1m, "piece"), published: false);
+
+        using var anonymous = fixture.Factory.CreateClient();
+        using var anonymousRead = await anonymous.GetAsync($"/api/recipes/{recipe}/comments");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousRead.StatusCode);
+
+        using var author = fixture.Factory.CreateClient();
+        var authorName = UniqueDisplayName();
+        await RegisterAndSignInAsync(author, authorName);
+        using var reader = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(reader, UniqueDisplayName());
+
+        using var blank = await author.PostAsJsonAsync($"/api/recipes/{recipe}/comments", new { body = "   " });
+        Assert.Equal(HttpStatusCode.BadRequest, blank.StatusCode);
+        using var onDraft = await author.PostAsJsonAsync($"/api/recipes/{draft}/comments", new { body = "Hidden" });
+        Assert.Equal(HttpStatusCode.NotFound, onDraft.StatusCode);
+
+        using var posted = await author.PostAsJsonAsync(
+            $"/api/recipes/{recipe}/comments",
+            new { body = "  Add more garlic.  " });
+        Assert.Equal(HttpStatusCode.Created, posted.StatusCode);
+        var comment = await ReadJsonAsync(posted);
+        var commentId = comment.GetProperty("id").GetGuid();
+        Assert.Equal("Add more garlic.", comment.GetProperty("body").GetString());
+        Assert.Equal(authorName, comment.GetProperty("authorName").GetString());
+
+        var seenByReader = Assert.Single((await ReadJsonAsync(await reader.GetAsync($"/api/recipes/{recipe}/comments")))
+            .EnumerateArray());
+        Assert.Equal(authorName, seenByReader.GetProperty("authorName").GetString());
+        Assert.False(seenByReader.GetProperty("canEdit").GetBoolean());
+        Assert.False(seenByReader.GetProperty("canDelete").GetBoolean());
+
+        using var readerEdit = await reader.PutAsJsonAsync($"/api/comments/{commentId}", new { body = "Mine now" });
+        Assert.Equal(HttpStatusCode.Forbidden, readerEdit.StatusCode);
+        using var readerDelete = await reader.DeleteAsync($"/api/comments/{commentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, readerDelete.StatusCode);
+        using var adminEdit = await admin.PutAsJsonAsync($"/api/comments/{commentId}", new { body = "Admin text" });
+        Assert.Equal(HttpStatusCode.Forbidden, adminEdit.StatusCode);
+
+        using var edited = await author.PutAsJsonAsync($"/api/comments/{commentId}", new { body = "Add lots of garlic." });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var editedBody = await ReadJsonAsync(edited);
+        Assert.Equal("Add lots of garlic.", editedBody.GetProperty("body").GetString());
+        Assert.NotEqual(JsonValueKind.Null, editedBody.GetProperty("updatedAt").ValueKind);
+
+        using var adminDelete = await admin.DeleteAsync($"/api/comments/{commentId}");
+        Assert.Equal(HttpStatusCode.NoContent, adminDelete.StatusCode);
+        Assert.Equal(0, (await ReadJsonAsync(await reader.GetAsync($"/api/recipes/{recipe}/comments"))).GetArrayLength());
+        using var missing = await author.DeleteAsync($"/api/comments/{commentId}");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task Comments_RequireADisplayName_BeforePosting()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var recipe = await CreatePlanRecipeAsync(admin, "Nameless", 2, (tomatoId, 1m, "piece"));
+
+        // The seeded admin predates display names, like any legacy account.
+        using var posted = await admin.PostAsJsonAsync($"/api/recipes/{recipe}/comments", new { body = "Hello" });
+        Assert.Equal(HttpStatusCode.Conflict, posted.StatusCode);
+    }
+
+    [Fact]
+    public async Task CommentReplies_FormOneLevelThreads_AndDeletedParentsLeaveAPlaceholder()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var recipe = await CreatePlanRecipeAsync(admin, "Threaded", 2, (tomatoId, 1m, "piece"));
+        var otherRecipe = await CreatePlanRecipeAsync(admin, "Other thread", 2, (tomatoId, 1m, "piece"));
+
+        using var first = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(first, UniqueDisplayName());
+        using var second = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(second, UniqueDisplayName());
+
+        async Task<Guid> PostAsync(HttpClient client, Guid recipeId, string body, Guid? parentId = null)
+        {
+            using var response = await client.PostAsJsonAsync($"/api/recipes/{recipeId}/comments", new { body, parentId });
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            return (await ReadJsonAsync(response)).GetProperty("id").GetGuid();
+        }
+
+        var root = await PostAsync(first, recipe, "Great with rice.");
+        var reply = await PostAsync(second, recipe, "Agreed!", root);
+        var replyToReply = await PostAsync(first, recipe, "Try jasmine.", reply);
+
+        using var wrongRecipe = await second.PostAsJsonAsync(
+            $"/api/recipes/{otherRecipe}/comments",
+            new { body = "Elsewhere", parentId = root });
+        Assert.Equal(HttpStatusCode.NotFound, wrongRecipe.StatusCode);
+
+        var thread = Assert.Single((await ReadJsonAsync(await second.GetAsync($"/api/recipes/{recipe}/comments")))
+            .EnumerateArray());
+        Assert.Equal(root, thread.GetProperty("id").GetGuid());
+        var replies = thread.GetProperty("replies").EnumerateArray().ToArray();
+        Assert.Equal([reply, replyToReply], replies.Select(item => item.GetProperty("id").GetGuid()));
+        Assert.All(replies, item => Assert.Equal(root, item.GetProperty("parentId").GetGuid()));
+
+        using var deleteRoot = await first.DeleteAsync($"/api/comments/{root}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteRoot.StatusCode);
+        var placeholder = Assert.Single((await ReadJsonAsync(await second.GetAsync($"/api/recipes/{recipe}/comments")))
+            .EnumerateArray());
+        Assert.True(placeholder.GetProperty("isDeleted").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, placeholder.GetProperty("authorName").ValueKind);
+        Assert.Equal(string.Empty, placeholder.GetProperty("body").GetString());
+        Assert.Equal(2, placeholder.GetProperty("replies").GetArrayLength());
+
+        using var replyToDeleted = await second.PostAsJsonAsync(
+            $"/api/recipes/{recipe}/comments",
+            new { body = "Too late", parentId = root });
+        Assert.Equal(HttpStatusCode.NotFound, replyToDeleted.StatusCode);
+        using var editDeleted = await first.PutAsJsonAsync($"/api/comments/{root}", new { body = "Back" });
+        Assert.Equal(HttpStatusCode.NotFound, editDeleted.StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await second.DeleteAsync($"/api/comments/{reply}")).StatusCode);
+        Assert.Single((await ReadJsonAsync(await second.GetAsync($"/api/recipes/{recipe}/comments"))).EnumerateArray());
+        Assert.Equal(HttpStatusCode.NoContent, (await first.DeleteAsync($"/api/comments/{replyToReply}")).StatusCode);
+        Assert.Equal(0, (await ReadJsonAsync(await second.GetAsync($"/api/recipes/{recipe}/comments"))).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task CookLogs_CanBeEditedAndDeletedByTheirOwner_AndUpdateTheAverageRating()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        var recipe = await CreatePlanRecipeAsync(admin, "Rated", 2, (tomatoId, 1m, "piece"));
+        var otherRecipe = await CreatePlanRecipeAsync(admin, "Rated other", 2, (tomatoId, 1m, "piece"));
+
+        using var cook = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(cook, UniqueDisplayName());
+        using var stranger = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(stranger, UniqueDisplayName());
+
+        using var logged = await cook.PostAsJsonAsync($"/api/recipes/{recipe}/cooked", new { rating = 2, notes = "Bland" });
+        Assert.Equal(HttpStatusCode.Created, logged.StatusCode);
+        var logId = (await ReadJsonAsync(logged)).GetProperty("id").GetGuid();
+        using var otherLog = await cook.PostAsJsonAsync($"/api/recipes/{otherRecipe}/cooked", new { rating = 5 });
+        Assert.Equal(HttpStatusCode.Created, otherLog.StatusCode);
+
+        var filtered = (await ReadJsonAsync(await cook.GetAsync($"/api/recipes/cooking-history?recipeId={recipe}")))
+            .EnumerateArray().ToArray();
+        Assert.Equal(logId, Assert.Single(filtered).GetProperty("id").GetGuid());
+        Assert.Equal(2, (await ReadJsonAsync(await cook.GetAsync("/api/recipes/cooking-history"))).GetArrayLength());
+
+        using var strangerEdit = await stranger.PutAsJsonAsync(
+            $"/api/recipes/cooking-history/{logId}",
+            new { rating = 1 });
+        Assert.Equal(HttpStatusCode.NotFound, strangerEdit.StatusCode);
+        using var strangerDelete = await stranger.DeleteAsync($"/api/recipes/cooking-history/{logId}");
+        Assert.Equal(HttpStatusCode.NotFound, strangerDelete.StatusCode);
+
+        using var edited = await cook.PutAsJsonAsync(
+            $"/api/recipes/cooking-history/{logId}",
+            new { rating = 4, notes = "   " });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var editedBody = await ReadJsonAsync(edited);
+        Assert.Equal(4, editedBody.GetProperty("rating").GetInt32());
+        Assert.Equal(JsonValueKind.Null, editedBody.GetProperty("notes").ValueKind);
+        var detail = await ReadJsonAsync(await cook.GetAsync($"/api/recipes/{recipe}"));
+        Assert.Equal(4d, detail.GetProperty("averageRating").GetDouble());
+
+        using var deleted = await cook.DeleteAsync($"/api/recipes/cooking-history/{logId}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        var afterDelete = await ReadJsonAsync(await cook.GetAsync($"/api/recipes/{recipe}"));
+        Assert.Equal(0, afterDelete.GetProperty("cookCount").GetInt32());
+        Assert.Equal(JsonValueKind.Null, afterDelete.GetProperty("averageRating").ValueKind);
     }
 
     [Fact]
@@ -815,6 +1057,24 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
         });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await ReadJsonAsync(response)).GetProperty("id").GetGuid();
+    }
+
+    private static string UniqueDisplayName() => $"Cook {Guid.NewGuid():N}"[..20];
+
+    private static async Task RegisterAndSignInAsync(HttpClient client, string displayName)
+    {
+        var email = $"user-{Guid.NewGuid():N}@mealbook.test";
+        const string password = "UserPassword123";
+        using var registration = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new { email, displayName, password });
+        Assert.Equal(HttpStatusCode.OK, registration.StatusCode);
+        using var login = await client.PostAsJsonAsync(
+            "/api/identity/login?useCookies=false",
+            new { email, password });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var token = (await ReadJsonAsync(login)).GetProperty("accessToken").GetString();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     private static async Task SignInAdminAsync(HttpClient client)

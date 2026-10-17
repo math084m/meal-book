@@ -10,6 +10,7 @@ export const routes: Routes = [
   { path: 'recipes/:id/cook', loadComponent: () => import('./cook-mode.component').then(m => m.CookModeComponent) },
   { path: 'login', loadComponent: () => import('./login.component').then(m => m.LoginComponent) },
   { path: 'register', loadComponent: () => import('./register.component').then(m => m.RegisterComponent) },
+  { path: 'profile', loadComponent: () => import('./profile.component').then(m => m.ProfileComponent), canActivate: [userGuard] },
   { path: 'history', loadComponent: () => import('./cooking-history.component').then(m => m.CookingHistoryComponent), canActivate: [userGuard] },
   { path: 'plan', loadComponent: () => import('./plan.component').then(m => m.PlanComponent), canActivate: [userGuard] },
   { path: 'plan/week', loadComponent: () => import('./week-planner.component').then(m => m.WeekPlannerComponent), canActivate: [userGuard] },

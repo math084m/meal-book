@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<MealBook.Application.Planning.IMealPlanRepository, MealPlanRepository>();
         services.AddScoped<MealBook.Application.Favorites.IFavoriteRepository, FavoriteRepository>();
+        services.AddScoped<MealBook.Application.Comments.ICommentRepository, CommentRepository>();
         services.AddScoped<MealBook.Application.Planning.IMealPlanNotifier, PgMealPlanNotifier>();
         services.AddHostedService(provider => new MealPlanChangeListener(
             connectionString,

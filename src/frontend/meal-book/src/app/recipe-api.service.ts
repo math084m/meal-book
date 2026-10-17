@@ -147,8 +147,17 @@ export class RecipeApiService {
     return this.http.post<CookLog>(`${apiUrl}recipes/${id}/cooked`, { rating, notes });
   }
 
-  getCookHistory(): Observable<CookLog[]> {
-    return this.http.get<CookLog[]>(`${apiUrl}recipes/cooking-history`);
+  getCookHistory(recipeId?: string): Observable<CookLog[]> {
+    const params = recipeId ? new HttpParams().set('recipeId', recipeId) : undefined;
+    return this.http.get<CookLog[]>(`${apiUrl}recipes/cooking-history`, { params });
+  }
+
+  updateCookLog(logId: string, rating: number | null, notes: string): Observable<CookLog> {
+    return this.http.put<CookLog>(`${apiUrl}recipes/cooking-history/${logId}`, { rating, notes });
+  }
+
+  deleteCookLog(logId: string): Observable<void> {
+    return this.http.delete<void>(`${apiUrl}recipes/cooking-history/${logId}`);
   }
 
   createRecipe(recipe: RecipeWrite): Observable<Recipe> {
