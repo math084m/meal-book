@@ -2,7 +2,7 @@ import { Component, HostListener, computed, effect, inject, signal, untracked, C
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { Recipe, RecipeApiService, RecipeSuggestion } from './recipe-api.service';
 import { RecipeImagePipe } from './recipe-image.pipe';
@@ -190,6 +190,9 @@ export class RecipeListComponent {
 
   constructor() {
     this.catalog.load();
+    const query = inject(ActivatedRoute).snapshot.queryParamMap;
+    this.filters.search = query.get('search') ?? '';
+    this.filters.cuisines = query.getAll('cuisine');
     effect(() => {
       this.i18n.lang();
       untracked(() => this.searchRecipes());
