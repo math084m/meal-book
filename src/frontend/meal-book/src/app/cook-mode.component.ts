@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, effect, inject, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { I18nService } from './i18n.service';
 import { Recipe, RecipeApiService } from './recipe-api.service';
@@ -101,6 +101,7 @@ export function ingredientKeywords(name: string): string[] {
       <div class="state-card" role="status">{{ i18n.t('detail.loading') }}</div>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     .cook-screen { display: grid; gap: 1.25rem; max-width: 70rem; margin: 0 auto; }
     .cook-top { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; }

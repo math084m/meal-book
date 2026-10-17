@@ -29,9 +29,9 @@ jobs:
     env:
       MEALBOOK_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=mealbook_tests;Username=postgres;Password=postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -41,9 +41,9 @@ jobs:
       - name: Run backend integration tests
         run: dotnet test src/backend/MealBook.sln -c Release --no-build
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: src/frontend/meal-book/package-lock.json
 
@@ -57,7 +57,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy
         run: flyctl deploy --remote-only

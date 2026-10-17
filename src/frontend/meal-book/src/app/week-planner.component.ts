@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { I18nService } from './i18n.service';
@@ -118,6 +118,7 @@ interface DayCell {
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     .week-page { display: flex; flex-direction: column; gap: 1.2rem; }
     .period-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; }

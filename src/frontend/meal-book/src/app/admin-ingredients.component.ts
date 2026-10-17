@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogIngredient, CatalogService } from './catalog.service';
 import { I18nService, TranslationKey } from './i18n.service';
@@ -66,6 +66,7 @@ import { I18nService, TranslationKey } from './i18n.service';
       </ul>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     .ingredient-filter { margin-bottom: 1rem; }
     .ingredient-admin-list { margin: 0; padding: 0; list-style: none; }

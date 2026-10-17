@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CookLog, RecipeApiService } from './recipe-api.service';
 import { I18nService } from './i18n.service';
@@ -7,6 +7,7 @@ import { I18nService } from './i18n.service';
 @Component({
   standalone: true,
   imports: [DatePipe, RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <section class="page-heading">
       <p class="eyebrow">{{ i18n.t('history.eyebrow') }}</p>

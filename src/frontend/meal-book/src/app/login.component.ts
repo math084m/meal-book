@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
@@ -7,6 +7,7 @@ import { I18nService } from './i18n.service';
 @Component({
   standalone: true,
   imports: [FormsModule, RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <section class="auth-card">
       <p class="eyebrow">{{ i18n.t('auth.login.eyebrow') }}</p>

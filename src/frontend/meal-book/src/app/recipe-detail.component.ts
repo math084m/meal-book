@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Component, effect, inject, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
@@ -14,6 +14,7 @@ import { FavoriteButtonComponent } from './favorite-button.component';
 @Component({
   standalone: true,
   imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, RecipeImagePipe, PlanButtonComponent, FavoriteButtonComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @if (recipe(); as item) {
       <a class="back-link" routerLink="/recipes">{{ i18n.t('common.backToRecipes') }}</a>

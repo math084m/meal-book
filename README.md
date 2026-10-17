@@ -6,7 +6,7 @@ cooking times, and equipment.
 
 ## Run locally
 
-Requirements: .NET 10 SDK, Node.js 22, and npm.
+Requirements: .NET 10 SDK, Node.js 24 LTS (22.22+ also works), and npm 11.
 
 In one terminal:
 

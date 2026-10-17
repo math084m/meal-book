@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { Recipe, RecipeApiService } from './recipe-api.service';
@@ -8,6 +8,7 @@ import { I18nService, TranslationKey } from './i18n.service';
 @Component({
   standalone: true,
   imports: [RouterLink, RecipeImagePipe],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <section class="page-heading">
       <p class="eyebrow">{{ i18n.t('drafts.eyebrow') }}</p>

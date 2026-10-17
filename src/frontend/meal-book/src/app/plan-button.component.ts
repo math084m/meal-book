@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, ChangeDetectionStrategy } from '@angular/core';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
 import { PlanService } from './plan.service';
@@ -21,6 +21,7 @@ import { PlanService } from './plan.service';
       >{{ compact() ? (planned() ? '✓' : '+') : label() }}</button>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     .plan-button {
       width: 2.2rem; height: 2.2rem; border-radius: 50%; border: 1px solid var(--line);

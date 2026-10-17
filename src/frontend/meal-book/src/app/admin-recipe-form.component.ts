@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -129,6 +129,7 @@ import { SelectFieldComponent } from './select-field.component';
       </div>
     </form>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `.field { display: flex; flex-direction: column; gap: 0.4rem; } .field-label { color: var(--label); font-size: 0.84rem; font-weight: 650; }`
 })
 export class AdminRecipeFormComponent implements OnInit {

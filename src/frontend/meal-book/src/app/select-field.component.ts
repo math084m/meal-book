@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, computed, inject, input, model, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, computed, inject, input, model, signal, ChangeDetectionStrategy } from '@angular/core';
 import { I18nService } from './i18n.service';
 import { SelectOption } from './catalog.service';
 
@@ -61,6 +61,7 @@ import { SelectOption } from './catalog.service';
       </div>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     :host { position: relative; display: block; }
     .select-trigger {

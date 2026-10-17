@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CatalogService } from './catalog.service';
@@ -151,6 +151,7 @@ import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopp
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     .plan-columns { display: flex; flex-direction: column; gap: 1.2rem; }
     .plan-columns > div { display: flex; flex-direction: column; gap: 1.2rem; }

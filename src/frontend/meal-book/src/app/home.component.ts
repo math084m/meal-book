@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Component, effect, inject, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { I18nService } from './i18n.service';
@@ -11,6 +11,7 @@ import { CatalogService } from './catalog.service';
 @Component({
   standalone: true,
   imports: [RouterLink, DatePipe, DecimalPipe, RecipeImagePipe, PlanButtonComponent, FavoriteButtonComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <section class="hero">
       <p class="eyebrow">{{ i18n.t('home.eyebrow') }}</p>

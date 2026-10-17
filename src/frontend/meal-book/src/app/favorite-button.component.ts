@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, ChangeDetectionStrategy } from '@angular/core';
 import { AuthService } from './auth.service';
 import { FavoriteService } from './favorite.service';
 import { I18nService } from './i18n.service';
@@ -20,6 +20,7 @@ import { I18nService } from './i18n.service';
       >{{ compact() ? (favorite() ? '★' : '☆') : (favorite() ? '★ ' : '☆ ') + label() }}</button>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     .fav-button {
       width: 2.2rem; height: 2.2rem; border-radius: 50%; border: 1px solid var(--line);

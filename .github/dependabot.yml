@@ -4,14 +4,28 @@ updates:
     directory: /src/backend
     schedule:
       interval: weekly
+    groups:
+      aspnetcore:
+        patterns: ["Microsoft.AspNetCore.*", "Microsoft.Extensions.*", "Npgsql*"]
+      test:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk"]
   - package-ecosystem: npm
     directory: /src/frontend/meal-book
     schedule:
       interval: weekly
+    groups:
+      # Angular packages must move in lockstep; majors also need `ng update` migrations.
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "typescript", "zone.js"]
+      test:
+        patterns: ["karma*", "jasmine*", "@types/jasmine", "istanbul*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: /src/backend
     schedule:
@@ -20,3 +34,7 @@ updates:
     directory: /src/frontend/meal-book
     schedule:
       interval: monthly
+    ignore:
+      # Stay on even-numbered (LTS) Node releases.
+      - dependency-name: node
+        versions: ["25", "27", "29"]
