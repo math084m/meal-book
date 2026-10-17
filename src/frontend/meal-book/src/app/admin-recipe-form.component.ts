@@ -146,7 +146,7 @@ export class AdminRecipeFormComponent implements OnInit {
   private pendingImage: Blob | null = null;
   private hadImage = false;
   readonly recipeId = this.route.snapshot.paramMap.get('id');
-  readonly units = ['g', 'kg', 'mg', 'ml', 'cl', 'dl', 'l', 'tsp', 'tbsp', 'piece', 'clove', 'can', 'package', 'pinch', 'handful', 'slice', 'bunch', 'cup'];
+  readonly units = ['g', 'kg', 'mg', 'ml', 'cl', 'dl', 'l', 'tsp', 'tbsp', 'piece', 'clove', 'can', 'package', 'pinch', 'handful', 'slice', 'bunch'];
   readonly otherUnit = '__other__';
   ingredientSections: IngredientSection[] = [{ name: '', ingredients: [this.newIngredient()] }];
   model: RecipeWrite = {
