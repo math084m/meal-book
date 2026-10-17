@@ -227,6 +227,11 @@ Recipes are public, so this is deterrence, not a vault:
 - The client address comes from `X-Forwarded-For` (configurable with
   `Protection__ClientIpHeader`, e.g. `Fly-Client-IP`), so the proxy in front must
   forward it.
+- Every response carries a strict `Content-Security-Policy` (same-origin only, no
+  inline scripts, no framing). Fonts are self-hosted via `@fontsource` packages, so
+  no third-party requests are made; Angular's critical-CSS inlining is off because
+  it injects an inline script. Loading anything from another origin needs a CSP change
+  in `ProtectionExtensions.cs`.
 
 ## AI-assisted recipe imports
 
