@@ -492,7 +492,8 @@ public sealed class RecipeService(
                 ? $"recipes/{recipe.Id}/image?v={imageUpdatedAt.ToUnixTimeMilliseconds()}"
                 : null,
             ingredients.Length,
-            recipe.Steps.Count);
+            recipe.Steps.Count,
+            view.RatingCount);
     }
 
     // Lists and the dashboard only carry what a card needs, so one request cannot dump the whole

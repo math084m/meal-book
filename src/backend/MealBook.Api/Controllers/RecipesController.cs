@@ -23,10 +23,12 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType<IReadOnlyList<RecipeResponse>>(StatusCodes.Status200OK)]
+    // Not named "search": a query key equal to the parameter name switches model binding to
+    // prefixed mode ("search.Sort", ...) and every filter would silently be ignored.
     public async Task<ActionResult<IReadOnlyList<RecipeResponse>>> GetAll(
-        [FromQuery] RecipeSearchRequest search,
+        [FromQuery] RecipeSearchRequest criteria,
         CancellationToken cancellationToken) =>
-        Ok(await recipes.GetAllAsync(search, cancellationToken));
+        Ok(await recipes.GetAllAsync(criteria, cancellationToken));
 
     [HttpGet("admin/drafts")]
     [Authorize(Roles = "Admin")]

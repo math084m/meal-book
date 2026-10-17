@@ -38,7 +38,8 @@ public sealed record RecipeResponse(
     bool IsTranslated = false,
     string? ImageUrl = null,
     int IngredientCount = 0,
-    int StepCount = 0);
+    int StepCount = 0,
+    int RatingCount = 0);
 
 public enum RecipeImageResult
 {

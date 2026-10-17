@@ -130,7 +130,7 @@ import { SelectFieldComponent } from './select-field.component';
                   @for (tag of recipe.tags; track tag) { <span class="tag">{{ catalog.label('tag', tag) }}</span> }
                 </div>
                 @if (recipe.averageRating) {
-                  <p class="rating">★ {{ recipe.averageRating | number:'1.1-1' }} <span>{{ i18n.t('list.ratingCooks', { n: recipe.cookCount }) }}</span></p>
+                  <p class="rating">★ {{ recipe.averageRating | number:'1.1-1' }} <span>{{ i18n.t('list.ratingCount', { n: recipe.ratingCount }) }}</span></p>
                 }
               </a>
             }

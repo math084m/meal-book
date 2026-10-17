@@ -35,7 +35,7 @@ import { RecipeCommentsComponent } from './recipe-comments.component';
           <span>{{ i18n.t('detail.minCook', { n: item.cookTimeMinutes }) }}</span>
           <span>{{ i18n.t('common.servings', { n: item.servings }) }}</span>
           @if (item.cookCount) { <span>{{ i18n.t('common.cooks', { n: item.cookCount }) }}</span> }
-          @if (item.averageRating) { <span>★ {{ item.averageRating | number:'1.1-1' }}</span> }
+          @if (item.averageRating) { <span>★ {{ item.averageRating | number:'1.1-1' }} {{ i18n.t('list.ratingCount', { n: item.ratingCount }) }}</span> }
         </div>
         <div class="tag-list">
           @for (slug of item.mealTypes; track slug) { <span class="tag">{{ catalog.label('mealType', slug) }}</span> }
