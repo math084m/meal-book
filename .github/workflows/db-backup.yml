@@ -39,7 +39,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: superfly/flyctl-actions/setup-flyctl@1.6
 
       - name: Dump production database
         env:

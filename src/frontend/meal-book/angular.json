@@ -32,12 +32,27 @@
               }
             ],
             "styles": [
+              "@fontsource/cormorant-garamond/400.css",
+              "@fontsource/cormorant-garamond/400-italic.css",
+              "@fontsource/cormorant-garamond/500.css",
+              "@fontsource/cormorant-garamond/600.css",
+              "@fontsource/jost/300.css",
+              "@fontsource/jost/400.css",
+              "@fontsource/jost/500.css",
               "src/styles.scss"
             ],
             "scripts": []
           },
           "configurations": {
             "production": {
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": false
+              },
               "budgets": [
                 {
                   "type": "initial",

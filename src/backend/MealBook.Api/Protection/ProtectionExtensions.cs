@@ -53,6 +53,14 @@ public static class ProtectionExtensions
         return app;
     }
 
+    // Everything is served from this origin (fonts are self-hosted). Angular injects component styles
+    // as <style> tags, so styles need 'unsafe-inline'; scripts do not (critical CSS inlining is off).
+    // Admin image previews are blob: URLs.
+    internal const string ContentSecurityPolicy =
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; " +
+        "font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; " +
+        "form-action 'self'; frame-ancestors 'none'";
+
     // Keeps the site out of search engines and AI training sets, and out of frames and sniffing attacks.
     public static IApplicationBuilder UseMealBookResponseHeaders(this IApplicationBuilder app) =>
         app.Use((context, next) =>
@@ -65,6 +73,7 @@ public static class ProtectionExtensions
                 headers["X-Frame-Options"] = "DENY";
                 headers["Referrer-Policy"] = "same-origin";
                 headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+                headers["Content-Security-Policy"] = ContentSecurityPolicy;
                 return Task.CompletedTask;
             });
             return next();

@@ -148,5 +148,8 @@ public sealed class ProtectionTests(MealBookApiFixture fixture)
         Assert.Contains("noindex", response.Headers.GetValues("X-Robots-Tag").Single());
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        var csp = response.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.Contains("script-src 'self';", csp);
+        Assert.Contains("frame-ancestors 'none'", csp);
     }
 }
