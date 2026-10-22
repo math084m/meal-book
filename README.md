@@ -62,7 +62,7 @@ with `Ctrl+C`, or run `docker compose down`; the database volume is preserved.
 - `PUT` and `DELETE /api/recipes/{id}` update and delete recipes (Admin required).
 - `GET /api/recipes/admin/drafts` lists unpublished recipes (Admin required).
 - `POST /api/recipe-imports` imports a structured recipe as an unpublished draft
-  using the server-to-server `X-Recipe-Import-Key` header.
+  using the server-to-server `X-Recipe-Import-Key` header; `sourceUrl` is optional.
 - `POST /api/recipes/{id}/cooked` logs a cook and optional 1–5 rating (signed in).
 - `GET /api/recipes/cooking-history[?recipeId=]` lists your own cooks;
   `PUT` and `DELETE /api/recipes/cooking-history/{logId}` edit or remove one of them.

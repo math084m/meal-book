@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
 
@@ -540,6 +541,23 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
 
         using var visibleDetail = await anonymousClient.GetAsync($"/api/recipes/{recipeId}");
         Assert.Equal(HttpStatusCode.OK, visibleDetail.StatusCode);
+    }
+
+    [Fact]
+    public async Task RecipeImport_AllowsMissingSourceUrl()
+    {
+        using var client = fixture.Factory.CreateClient();
+        var name = $"No-source import {Guid.NewGuid():N}";
+        var request = JsonNode.Parse(JsonSerializer.Serialize(ImportRecipe(name)))!.AsObject();
+        request.Remove("sourceUrl");
+
+        using var imported = await ImportAsync(client, request);
+
+        Assert.Equal(HttpStatusCode.Created, imported.StatusCode);
+        using var importedBody = JsonDocument.Parse(await imported.Content.ReadAsStringAsync());
+        Assert.Equal(name, importedBody.RootElement.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, importedBody.RootElement.GetProperty("sourceUrl").ValueKind);
+        Assert.False(importedBody.RootElement.GetProperty("isPublished").GetBoolean());
     }
 
     [Fact]
