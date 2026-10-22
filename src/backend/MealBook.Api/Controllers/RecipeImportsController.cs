@@ -37,8 +37,9 @@ public sealed class RecipeImportsController(
             return Unauthorized();
         }
 
-        if (!Uri.TryCreate(request.SourceUrl, UriKind.Absolute, out var sourceUri)
-            || sourceUri.Scheme is not ("http" or "https"))
+        if (!string.IsNullOrWhiteSpace(request.SourceUrl)
+            && (!Uri.TryCreate(request.SourceUrl, UriKind.Absolute, out var sourceUri)
+                || sourceUri.Scheme is not ("http" or "https")))
         {
             ModelState.AddModelError(nameof(request.SourceUrl), "Source URL must use HTTP or HTTPS.");
             return ValidationProblem(ModelState);
