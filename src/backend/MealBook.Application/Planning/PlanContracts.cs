@@ -136,7 +136,9 @@ public sealed record ShoppingItemResponse(
     IReadOnlyList<string> Recipes,
     Guid? CustomId = null,
     IReadOnlyList<ShoppingAmountResponse>? Amounts = null,
-    IReadOnlyList<ShoppingSourceResponse>? Sources = null);
+    IReadOnlyList<ShoppingSourceResponse>? Sources = null,
+    bool PantryItem = false,
+    bool PantryOverride = false);
 
 public sealed record ShoppingSectionResponse(
     string Slug,
@@ -145,7 +147,8 @@ public sealed record ShoppingSectionResponse(
 
 public sealed record MealPlanResponse(
     IReadOnlyList<PlanEntryResponse> Entries,
-    IReadOnlyList<ShoppingSectionResponse> Sections);
+    IReadOnlyList<ShoppingSectionResponse> Sections,
+    bool UsePantry = false);
 
 public sealed record PlanSuggestionResponse(
     Guid RecipeId,

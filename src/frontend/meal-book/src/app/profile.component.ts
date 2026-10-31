@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from './auth.service';
 import { displayNameError } from './display-name';
 import { I18nService, TranslationKey } from './i18n.service';
+import { PantryComponent } from './pantry.component';
 
 @Component({
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, PantryComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <section class="auth-card">
@@ -24,6 +25,7 @@ import { I18nService, TranslationKey } from './i18n.service';
         <button class="button" type="submit" [disabled]="busy()">@if (busy()) { <span class="spinner" aria-hidden="true"></span> }{{ i18n.t('common.save') }}</button>
       </form>
     </section>
+    <app-pantry />
   `
 })
 export class ProfileComponent implements OnInit {

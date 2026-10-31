@@ -1,0 +1,91 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { CatalogService } from './catalog.service';
+import { I18nService } from './i18n.service';
+import { PantryComponent } from './pantry.component';
+import { PlanService } from './plan.service';
+
+describe('PantryComponent', () => {
+  let fixture: ComponentFixture<PantryComponent>;
+  let http: HttpTestingController;
+  let refresh: jasmine.Spy;
+
+  beforeEach(() => {
+    refresh = jasmine.createSpy('refresh');
+    TestBed.configureTestingModule({
+      imports: [PantryComponent],
+      providers: [
+        provideHttpClient(), provideHttpClientTesting(),
+        { provide: PlanService, useValue: { refresh } },
+        { provide: CatalogService, useValue: {
+          load: () => undefined,
+          ingredientOptions: signal([{ value: 'salt', label: 'Salt' }, { value: 'oil', label: 'Oil' }])
+        } }
+      ]
+    });
+    TestBed.inject(I18nService).setLanguage('en');
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(PantryComponent);
+    fixture.detectChanges();
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false, items: [{ ingredientId: 'salt', haveFraction: null }]
+    });
+    fixture.detectChanges();
+  });
+
+  afterEach(() => http.verify());
+
+  it('adds and removes catalog ingredients and refreshes the shopping list after saving', () => {
+    expect(fixture.componentInstance.choices().map(option => option.value)).toEqual(['oil']);
+    fixture.componentInstance.selected = ['oil'];
+    fixture.componentInstance.add();
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/oil') && req.method === 'PUT').flush(null);
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false,
+      items: [{ ingredientId: 'salt', haveFraction: null }, { ingredientId: 'oil', haveFraction: null }]
+    });
+    expect(fixture.componentInstance.selected).toEqual([]);
+    expect(fixture.componentInstance.choices()).toEqual([]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    fixture.componentInstance.remove('salt');
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/salt') && req.method === 'DELETE').flush(null);
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false, items: [{ ingredientId: 'oil', haveFraction: null }]
+    });
+    expect(fixture.componentInstance.listed().map(item => item.name)).toEqual(['Oil']);
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('persists the opt-in toggle before showing it as enabled', () => {
+    const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    checkbox.click();
+    expect(checkbox.checked).toBeFalse();
+    const request = http.expectOne(req => req.url.endsWith('/api/pantry/settings'));
+    expect(request.request.body).toEqual({ useForShopping: true });
+    request.flush(null);
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: true, items: [{ ingredientId: 'salt', haveFraction: null }]
+    });
+    fixture.detectChanges();
+    expect(checkbox.checked).toBeTrue();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('keeps the saved toggle and displays an error when saving fails', () => {
+    const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    checkbox.click();
+    http.expectOne(req => req.url.endsWith('/api/pantry/settings'))
+      .flush({}, { status: 500, statusText: 'Server error' });
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false, items: [{ ingredientId: 'salt', haveFraction: null }]
+    });
+    fixture.detectChanges();
+    expect(checkbox.checked).toBeFalse();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
+    expect(fixture.componentInstance.busy()).toBeFalse();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
