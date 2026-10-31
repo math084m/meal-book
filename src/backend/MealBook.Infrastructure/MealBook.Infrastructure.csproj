@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="4.0.104.4" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.104.8" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.13" />
     <PackageReference Include="Migr8.Npgsql" Version="0.37.0" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.13" />

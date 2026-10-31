@@ -8,6 +8,28 @@ describe('shopping totals', () => {
 });
 
 describe('servings scaling', () => {
+  it('localizes stored units at original servings in Danish', () => {
+    for (const [unit, translated] of [
+      ['pieces', 'stk.'], ['pinch', 'knivspids'], ['as needed', 'efter behov'],
+      ['as required', 'efter behov'], ['tbsp', 'spsk'], ['tsp', 'tsk'],
+      ['cloves', 'fed'], ['handful', 'håndfuld'], ['slices', 'skiver']
+    ]) {
+      expect(formatAmount(1, unit, 1, 'da')).withContext(unit).toBe(`1 ${translated}`);
+    }
+    expect(formatAmount(2, ' AS REQUIRED ', 1, 'da')).toBe('2 efter behov');
+  });
+
+  it('localizes non-convertible units when servings or shopping totals change', () => {
+    expect(formatAmount(4, 'pieces', 0.5, 'da')).toBe('2 stk.');
+    expect(formatAmount(1, 'as required', 2, 'da')).toBe('2 efter behov');
+    expect(formatTotal(3, 'pcs', 'da')).toBe('3 stk.');
+  });
+
+  it('preserves English and unknown unit labels', () => {
+    expect(formatAmount(1, 'as required', 1, 'en')).toBe('1 as required');
+    expect(formatAmount(1, 'custom unit', 1, 'da')).toBe('1 custom unit');
+  });
+
   it('shows the stored amount untouched at factor 1', () => {
     expect(formatAmount(70, 'g', 1, 'en')).toBe('70 g');
     expect(formatAmount(50, 'ml', 1, 'en')).toBe('50 ml');
