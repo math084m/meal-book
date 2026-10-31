@@ -19,6 +19,11 @@ updates:
         patterns: ["@angular/*", "@angular-devkit/*", "typescript", "zone.js"]
       test:
         patterns: ["karma*", "jasmine*", "@types/jasmine", "istanbul*"]
+    ignore:
+      - dependency-name: jasmine-core
+        versions: [">=6"]
+      - dependency-name: "@types/jasmine"
+        versions: [">=6"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
