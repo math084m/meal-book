@@ -19,6 +19,9 @@ updates:
         patterns: ["@angular/*", "@angular-devkit/*", "typescript", "zone.js"]
       test:
         patterns: ["karma*", "jasmine*", "@types/jasmine", "istanbul*"]
+    ignore:
+      - dependency-name: typescript
+        versions: [">=7"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
