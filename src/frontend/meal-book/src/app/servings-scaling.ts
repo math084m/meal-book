@@ -22,6 +22,37 @@ const mlPerUnit: Record<string, number> = {
 
 const gramsPerUnit: Record<string, number> = { g: 1, kg: 1000 };
 
+const danishUnitLabels: { aliases: string[]; label: string }[] = [
+  { aliases: ['piece', 'pieces', 'pcs', 'stk', 'stk.'], label: 'stk.' },
+  { aliases: ['pinch', 'pinches'], label: 'knivspids' },
+  { aliases: ['dash', 'dashes'], label: 'stænk' },
+  { aliases: ['tsp', 'teaspoon', 'teaspoons'], label: 'tsk' },
+  { aliases: ['tbsp', 'tablespoon', 'tablespoons'], label: 'spsk' },
+  { aliases: ['as needed', 'as required'], label: 'efter behov' },
+  { aliases: ['to taste'], label: 'efter smag' },
+  { aliases: ['clove', 'cloves'], label: 'fed' },
+  { aliases: ['can', 'cans', 'tin', 'tins'], label: 'dåser' },
+  { aliases: ['package', 'packages', 'pack', 'packs'], label: 'pakker' },
+  { aliases: ['handful', 'handfuls'], label: 'håndfuld' },
+  { aliases: ['small handful'], label: 'lille håndfuld' },
+  { aliases: ['slice', 'slices'], label: 'skiver' },
+  { aliases: ['bunch', 'bunches'], label: 'bundt' },
+  { aliases: ['ball', 'balls'], label: 'kugler' },
+  { aliases: ['bottle', 'bottles'], label: 'flasker' },
+  { aliases: ['bag', 'bags'], label: 'poser' },
+  { aliases: ['roll', 'rolls'], label: 'ruller' },
+  { aliases: ['box', 'boxes'], label: 'æsker' }
+];
+
+function localizedUnit(unit: string, language: AmountLanguage): string {
+  if (language !== 'da') {
+    return unit;
+  }
+
+  const key = unit.trim().toLowerCase();
+  return danishUnitLabels.find(item => item.aliases.includes(key))?.label ?? unit;
+}
+
 const fractions: { value: number; symbol: string }[] = [
   { value: 0, symbol: '' },
   { value: 0.25, symbol: '¼' },
@@ -137,13 +168,13 @@ export function formatTotal(quantity: number, unit: string, language: AmountLang
   return formatAmount(quantity / 2, unit, 2, language);
 }
 
-// At factor 1 the stored amount is shown untouched; otherwise a fitting unit and rounding is chosen.
+// At factor 1 keep the stored amount but localize its unit; otherwise choose a fitting unit and rounding.
 export function formatAmount(quantity: number, unit: string, factor: number, language: AmountLanguage): string {
   const key = unit.trim().toLowerCase();
   if (factor === 1) {
-    // Amounts stored in ml (e.g. 2.5 ml) read better as spoons when they fit; other units stay as written.
+    // Amounts stored in ml (e.g. 2.5 ml) read better as spoons when they fit.
     const spoonFit = key === 'ml' ? bestVolumeFit(quantity, language) : null;
-    return spoonFit ?? `${formatNumber(quantity, language, 3)} ${unit}`.trim();
+    return spoonFit ?? `${formatNumber(quantity, language, 3)} ${localizedUnit(unit, language)}`.trim();
   }
 
   const scaled = quantity * factor;
@@ -155,5 +186,5 @@ export function formatAmount(quantity: number, unit: string, factor: number, lan
     return weightText(scaled * gramsPerUnit[key], language);
   }
 
-  return `${formatFriendly(scaled, language)} ${unit}`.trim();
+  return `${formatFriendly(scaled, language)} ${localizedUnit(unit, language)}`.trim();
 }
