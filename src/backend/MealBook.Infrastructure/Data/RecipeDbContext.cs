@@ -10,6 +10,7 @@ public sealed class AppUser : IdentityUser
 {
     // Public name shown on comments. Null for accounts created before display names existed.
     public string? DisplayName { get; set; }
+    public bool UsePantryForShopping { get; set; }
 }
 
 public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
@@ -24,6 +25,21 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options)
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<AppUser>().Property(item => item.DisplayName).HasMaxLength(30);
+        modelBuilder.Entity<AppUser>().Property(item => item.UsePantryForShopping).HasDefaultValue(false);
+
+        var pantryItem = modelBuilder.Entity<MealBook.Domain.Pantry.PantryItem>();
+        pantryItem.ToTable("PantryItems");
+        pantryItem.HasKey(item => new { item.UserId, item.IngredientId });
+        pantryItem.Property(item => item.UserId).HasMaxLength(450);
+        pantryItem.Property(item => item.HaveFraction).HasPrecision(4, 3);
+        pantryItem.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(item => item.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        pantryItem.HasOne<Ingredient>()
+            .WithMany()
+            .HasForeignKey(item => item.IngredientId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var recipe = modelBuilder.Entity<Recipe>();
         recipe.ToTable("Recipes");

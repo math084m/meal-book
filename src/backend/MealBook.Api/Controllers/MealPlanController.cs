@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MealBook.Application.Pantry;
 using MealBook.Application.Planning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,14 +10,23 @@ namespace MealBook.Api.Controllers;
 [ApiController]
 [Route("api/meal-plan")]
 [Authorize]
-public sealed class MealPlanController(IMealPlanService plan) : ControllerBase
+public sealed class MealPlanController(IMealPlanService plan, IPantryRepository pantry) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<MealPlanResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<MealPlanResponse>> Get(
         [FromQuery] string? lang,
-        CancellationToken cancellationToken) =>
-        Ok(await plan.GetPlanAsync(lang, cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var sharedPlan = await plan.GetPlanAsync(lang, cancellationToken);
+        return Ok(PantryShopping.Apply(sharedPlan, await pantry.GetAsync(userId, cancellationToken)));
+    }
 
     [HttpGet("suggestions")]
     [ProducesResponseType<IReadOnlyList<PlanSuggestionResponse>>(StatusCodes.Status200OK)]

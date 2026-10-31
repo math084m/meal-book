@@ -91,6 +91,12 @@ import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopp
               </span>
             </div>
 
+            <p class="muted small-text">
+              {{ i18n.t(data.usePantry ? 'pantry.shopping.on' : 'pantry.shopping.off') }}
+              <a routerLink="/profile">{{ i18n.t('pantry.manage') }}</a>
+            </p>
+            @if (plan.pantryError()) { <p class="error-message" role="alert">{{ i18n.t('pantry.error') }}</p> }
+
             <form class="custom-form" (submit)="addCustom($event)">
               <input class="custom-name" name="name" [(ngModel)]="customName" [placeholder]="i18n.t('plan.custom.name')" [attr.aria-label]="i18n.t('plan.custom.name')" maxlength="120" required />
               <input class="custom-qty" name="qty" type="number" min="0" step="any" [(ngModel)]="customQuantity" [placeholder]="i18n.t('plan.custom.qty')" [attr.aria-label]="i18n.t('plan.custom.qty')" />
@@ -123,6 +129,9 @@ import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopp
                           @if ((item.sources?.length ?? 0) > 1) {
                             <span class="shop-sources">{{ sources(item) }}</span>
                           }
+                          @if (item.pantryItem) {
+                            <span class="shop-sources">{{ i18n.t(item.pantryOverride ? 'pantry.override' : 'pantry.default') }}</span>
+                          }
                         </span>
                       </label>
                       @if (item.ingredientId) {
@@ -131,6 +140,10 @@ import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopp
                             <option [value]="option.value" [selected]="option.value === haveFraction(item)">{{ option.value === '0' ? i18n.t('plan.have.none') : i18n.t('plan.have.share', { share: option.label }) }}</option>
                           }
                         </select>
+                        @if (item.pantryOverride) {
+                          <button type="button" class="link-button small-text" [attr.aria-label]="i18n.t('pantry.resetAria', { name: item.name })"
+                            (click)="plan.resetPantry(item)">{{ i18n.t('pantry.reset') }}</button>
+                        }
                       }
                       @if (item.customId) {
                         <button type="button" class="link-button" [attr.aria-label]="i18n.t('plan.custom.removeAria', { name: item.name })" (click)="plan.removeCustom(item)">✕</button>
@@ -171,6 +184,7 @@ import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopp
     .small-text { font-size: 0.85rem; }
     .shop-section { margin: 1.2rem 0 0.3rem; font-size: 1rem; color: var(--green); }
     .shop-list li { display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+    .shop-item > .link-button { flex-shrink: 0; }
     .shop-main { flex: 1; min-width: 0; flex-direction: row; align-items: center; gap: 0.8rem; cursor: pointer; font-size: 0.95rem; font-weight: 400; color: var(--ink); }
     .shop-main input[type='checkbox'] { flex: none; width: 1.25rem; min-height: 0; height: 1.25rem; padding: 0; accent-color: var(--green); cursor: pointer; }
     .shop-text { display: flex; flex-direction: column; min-width: 0; }
@@ -182,6 +196,10 @@ import { shoppingAmountText, remainingShare, shoppingSourcesText } from './shopp
     .plan-head .link-button { background: none; border: 0; padding: 0; color: var(--green); font-size: 0.85rem; text-decoration: underline; cursor: pointer; }
     .live-pill { margin-left: 0.5rem; padding: 0.1rem 0.5rem; border: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--tag-ink); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; }
     .live-pill.off { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+    @media (max-width: 480px) {
+      .shop-list li { flex-wrap: wrap; }
+      .shop-main { flex-basis: 55%; }
+    }
   `
 })
 export class PlanComponent {

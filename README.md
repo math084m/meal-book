@@ -110,6 +110,30 @@ Compose keeps database files in the `mealbook-postgres` named volume;
 
 Signed-in users share one household plan (`/plan`). Add recipes with the "Add to plan" button; the shopping list is aggregated across recipes (scaled by planned servings, volumes summed in ml, weights in g) and grouped by shop section (`ShopSections` table, assigned per ingredient in the admin ingredients page). Checked items are shared too.
 
+### Personal pantry
+
+Every signed-in user can maintain an ingredient checklist under `/profile`.
+Choose ingredients from the existing catalog; quantities and expiry dates are
+not tracked. **Use my pantry on the shopping list** is off by default and saved
+per account. When enabled, pantry ingredients default to "enough at home" in
+that user's shopping-list view, including copied/shared list text. This does
+not change the shared plan, purchased checks, or anyone else's "have" amounts.
+
+For a pantry ingredient, changing "have" saves a personal fraction, including
+zero when it needs buying. This overrides the pantry default and scales with
+servings, including lines combining incompatible units. Overrides persist
+until **Use pantry default** is clicked or the ingredient is removed. Turning
+the feature off restores the ordinary shared shopping list without deleting
+the pantry. Non-pantry ingredients keep the existing shared "have" behavior.
+Pantry stock is never automatically consumed or replenished.
+
+API (authenticated, scoped to the current user): `GET api/pantry`,
+`PUT api/pantry/settings` (`useForShopping`),
+`PUT|DELETE api/pantry/ingredients/{ingredientId}`, and
+`PUT api/pantry/ingredients/{ingredientId}/shopping` (`haveFraction` from 0 to 1,
+or null to reset). Migration `0032` adds the opt-in account setting and pantry
+rows with cascading user/ingredient foreign keys.
+
 - Realtime: every change calls Postgres `NOTIFY meal_plan_changed`; each API instance `LISTEN`s and pushes `planChanged` over SignalR (`/api/hubs/mealplan`), and clients refetch. This needs a direct (non-pooled) Postgres connection for LISTEN, and the proxy should allow WebSockets (SignalR falls back to SSE/long polling otherwise).
 - Suggestions: recipes sharing perishable ingredients with the plan score highest, rarer ingredients weigh more, and extra perishables are penalised. "Perishable" comes from the section (`ShopSections.Perishable`), so e.g. onions count as fresh.
 - Week view (`/plan/week`): pick a date range (up to 42 days, remembered per browser) and drag plan recipes onto days; on touch screens tap a recipe, then "Place here". A recipe can span 1-14 days (leftovers) and is scheduled with `PUT api/meal-plan/recipes/{id}/schedule` (`{ start: "yyyy-MM-dd" | null, days }`). Each recipe is in the plan once, so it has a single scheduled slot.

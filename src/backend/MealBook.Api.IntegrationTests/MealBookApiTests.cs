@@ -765,6 +765,159 @@ public sealed class MealBookApiTests(MealBookApiFixture fixture)
     }
 
     [Fact]
+    public async Task Pantry_IsPersonal_Idempotent_AndValidatesIngredientsAndOverrides()
+    {
+        using var anonymous = fixture.Factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/pantry")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.PutAsync($"/api/pantry/ingredients/{tomatoId}", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.DeleteAsync($"/api/pantry/ingredients/{tomatoId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.PutAsJsonAsync("/api/pantry/settings", new { useForShopping = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.PutAsJsonAsync($"/api/pantry/ingredients/{tomatoId}/shopping",
+                new { haveFraction = 0.5m })).StatusCode);
+
+        using var first = fixture.Factory.CreateClient();
+        using var second = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(first, UniqueDisplayName());
+        await RegisterAndSignInAsync(second, UniqueDisplayName());
+        var initial = await ReadJsonAsync(await first.GetAsync("/api/pantry"));
+        Assert.False(initial.GetProperty("useForShopping").GetBoolean());
+        Assert.Empty(initial.GetProperty("items").EnumerateArray());
+
+        for (var i = 0; i < 2; i++)
+        {
+            Assert.Equal(HttpStatusCode.NoContent,
+                (await first.PutAsync($"/api/pantry/ingredients/{tomatoId}", null)).StatusCode);
+        }
+        var item = Assert.Single((await ReadJsonAsync(await first.GetAsync("/api/pantry")))
+            .GetProperty("items").EnumerateArray());
+        Assert.Equal(tomatoId, item.GetProperty("ingredientId").GetGuid());
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("haveFraction").ValueKind);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await first.PutAsync($"/api/pantry/ingredients/{Guid.NewGuid()}", null)).StatusCode);
+
+        foreach (var fraction in new[] { -0.1m, 1.1m })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await first.PutAsJsonAsync($"/api/pantry/ingredients/{tomatoId}/shopping",
+                    new { haveFraction = fraction })).StatusCode);
+        }
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await second.PutAsJsonAsync($"/api/pantry/ingredients/{tomatoId}/shopping",
+                new { haveFraction = 0m })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await second.DeleteAsync($"/api/pantry/ingredients/{tomatoId}")).StatusCode);
+        Assert.Single((await ReadJsonAsync(await first.GetAsync("/api/pantry"))).GetProperty("items").EnumerateArray());
+        Assert.Empty((await ReadJsonAsync(await second.GetAsync("/api/pantry"))).GetProperty("items").EnumerateArray());
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await first.PutAsJsonAsync("/api/pantry/settings", new { useForShopping = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await first.PutAsJsonAsync($"/api/pantry/ingredients/{tomatoId}/shopping",
+                new { haveFraction = 0.25m })).StatusCode);
+        // Re-adding an existing ingredient must not discard its personal override.
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await first.PutAsync($"/api/pantry/ingredients/{tomatoId}", null)).StatusCode);
+
+        using var otherInstance = fixture.CreateSecondInstance();
+        using var reloaded = otherInstance.CreateClient();
+        reloaded.DefaultRequestHeaders.Authorization = first.DefaultRequestHeaders.Authorization;
+        var persisted = await ReadJsonAsync(await reloaded.GetAsync("/api/pantry"));
+        Assert.True(persisted.GetProperty("useForShopping").GetBoolean());
+        Assert.Equal(0.25m, Assert.Single(persisted.GetProperty("items").EnumerateArray())
+            .GetProperty("haveFraction").GetDecimal());
+        Assert.False((await ReadJsonAsync(await second.GetAsync("/api/pantry")))
+            .GetProperty("useForShopping").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Pantry_DefaultsAndOverridesOnlyOwnShoppingView_AndScalesMixedUnits()
+    {
+        using var admin = fixture.Factory.CreateClient();
+        await SignInAdminAsync(admin);
+        (await admin.DeleteAsync("/api/meal-plan")).EnsureSuccessStatusCode();
+        var recipe = await CreatePlanRecipeAsync(admin, "Pantry", 2,
+            (tomatoId, 0.5m, "kg"), (onionId, 100m, "g"));
+        (await admin.PutAsJsonAsync($"/api/meal-plan/recipes/{recipe}", new { })).EnsureSuccessStatusCode();
+        (await admin.PutAsJsonAsync("/api/meal-plan/have",
+            new { ingredientId = tomatoId, unit = "g", quantity = 100m })).EnsureSuccessStatusCode();
+        (await admin.PutAsJsonAsync("/api/meal-plan/have",
+            new { ingredientId = onionId, unit = "g", quantity = 50m })).EnsureSuccessStatusCode();
+        (await admin.PostAsJsonAsync("/api/meal-plan/custom",
+            new { name = "Pantry test paper", quantity = 1m, unit = "pack", sectionSlug = "nonfood" }))
+            .EnsureSuccessStatusCode();
+
+        using var owner = fixture.Factory.CreateClient();
+        using var other = fixture.Factory.CreateClient();
+        await RegisterAndSignInAsync(owner, UniqueDisplayName());
+        await RegisterAndSignInAsync(other, UniqueDisplayName());
+
+        static JsonElement Ingredient(JsonElement plan, Guid id) => Assert.Single(
+            plan.GetProperty("sections").EnumerateArray()
+                .SelectMany(section => section.GetProperty("items").EnumerateArray()),
+            item => item.GetProperty("ingredientId").ValueKind == JsonValueKind.String
+                && item.GetProperty("ingredientId").GetGuid() == id);
+        async Task<JsonElement> View(HttpClient client) => await ReadJsonAsync(await client.GetAsync("/api/meal-plan"));
+        async Task SetFraction(decimal? fraction) =>
+            (await owner.PutAsJsonAsync($"/api/pantry/ingredients/{tomatoId}/shopping",
+                new { haveFraction = fraction })).EnsureSuccessStatusCode();
+
+        (await owner.PutAsync($"/api/pantry/ingredients/{tomatoId}", null)).EnsureSuccessStatusCode();
+        Assert.Equal(100m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        (await owner.PutAsJsonAsync("/api/pantry/settings", new { useForShopping = true })).EnsureSuccessStatusCode();
+        var personal = await View(owner);
+        Assert.True(personal.GetProperty("usePantry").GetBoolean());
+        Assert.Equal(500m, Ingredient(personal, tomatoId).GetProperty("have").GetDecimal());
+        Assert.True(Ingredient(personal, tomatoId).GetProperty("pantryItem").GetBoolean());
+        Assert.False(Ingredient(personal, tomatoId).GetProperty("pantryOverride").GetBoolean());
+        Assert.Equal(50m, Ingredient(personal, onionId).GetProperty("have").GetDecimal());
+        var custom = Assert.Single(personal.GetProperty("sections").EnumerateArray()
+            .SelectMany(section => section.GetProperty("items").EnumerateArray()),
+            item => item.GetProperty("customId").ValueKind == JsonValueKind.String);
+        Assert.Equal(0m, custom.GetProperty("have").GetDecimal());
+        Assert.False(custom.GetProperty("pantryItem").GetBoolean());
+        Assert.Equal(100m, Ingredient(await View(other), tomatoId).GetProperty("have").GetDecimal());
+
+        await SetFraction(0m);
+        var overridden = Ingredient(await View(owner), tomatoId);
+        Assert.Equal(0m, overridden.GetProperty("have").GetDecimal());
+        Assert.True(overridden.GetProperty("pantryOverride").GetBoolean());
+        await SetFraction(0.25m);
+        Assert.Equal(125m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        (await admin.PutAsJsonAsync($"/api/meal-plan/recipes/{recipe}/servings", new { servings = 4 }))
+            .EnsureSuccessStatusCode();
+        Assert.Equal(250m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        await SetFraction(null);
+        Assert.Equal(1000m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        (await owner.PutAsJsonAsync("/api/pantry/settings", new { useForShopping = false })).EnsureSuccessStatusCode();
+        Assert.Equal(100m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        (await owner.PutAsJsonAsync("/api/pantry/settings", new { useForShopping = true })).EnsureSuccessStatusCode();
+
+        var cans = await CreatePlanRecipeAsync(admin, "Pantry cans", 2, (tomatoId, 1m, "can"));
+        (await admin.PutAsJsonAsync($"/api/meal-plan/recipes/{cans}", new { })).EnsureSuccessStatusCode();
+        var mixed = Ingredient(await View(owner), tomatoId);
+        Assert.Equal("mixed", mixed.GetProperty("unit").GetString());
+        Assert.Equal(1m, mixed.GetProperty("have").GetDecimal());
+        await SetFraction(0.5m);
+        Assert.Equal(0.5m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        Assert.Equal(0m, Ingredient(await View(other), tomatoId).GetProperty("have").GetDecimal());
+        (await other.PutAsJsonAsync("/api/meal-plan/checks",
+            new { ingredientId = tomatoId, unit = "mixed", @checked = true })).EnsureSuccessStatusCode();
+        Assert.True(Ingredient(await View(owner), tomatoId).GetProperty("checked").GetBoolean());
+
+        (await owner.DeleteAsync($"/api/pantry/ingredients/{tomatoId}")).EnsureSuccessStatusCode();
+        Assert.False(Ingredient(await View(owner), tomatoId).GetProperty("pantryItem").GetBoolean());
+        Assert.Equal(0m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        (await owner.PutAsync($"/api/pantry/ingredients/{tomatoId}", null)).EnsureSuccessStatusCode();
+        Assert.False(Ingredient(await View(owner), tomatoId).GetProperty("pantryOverride").GetBoolean());
+        Assert.Equal(1m, Ingredient(await View(owner), tomatoId).GetProperty("have").GetDecimal());
+        (await admin.DeleteAsync("/api/meal-plan")).EnsureSuccessStatusCode();
+    }
+
+    [Fact]
     public async Task MealPlan_AggregatesShoppingListBySection_TracksChecks_AndSuggestsRecipes()
     {
         using var anonymous = fixture.Factory.CreateClient();

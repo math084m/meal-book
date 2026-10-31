@@ -4,6 +4,7 @@ import * as signalR from '@microsoft/signalr';
 import { Observable, tap } from 'rxjs';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
+import { PantryService } from './pantry.service';
 
 export interface PlanEntry {
   recipeId: string;
@@ -38,6 +39,8 @@ export interface ShoppingItem {
   customId: string | null;
   amounts?: ShoppingAmount[] | null;
   sources?: ShoppingSource[] | null;
+  pantryItem?: boolean;
+  pantryOverride?: boolean;
 }
 
 export interface ShoppingSection {
@@ -49,6 +52,7 @@ export interface ShoppingSection {
 export interface MealPlan {
   entries: PlanEntry[];
   sections: ShoppingSection[];
+  usePantry?: boolean;
 }
 
 export interface PlanSuggestion {
@@ -67,6 +71,7 @@ export class PlanService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly i18n = inject(I18nService);
+  private readonly pantry = inject(PantryService);
   private connection: signalR.HubConnection | null = null;
   private refreshing = false;
   private refreshQueued = false;
@@ -74,6 +79,7 @@ export class PlanService {
   readonly plan = signal<MealPlan | null>(null);
   readonly suggestions = signal<PlanSuggestion[]>([]);
   readonly error = signal(false);
+  readonly pantryError = signal(false);
   readonly live = signal(false);
 
   readonly plannedIds = computed(() => new Set(this.plan()?.entries.map(entry => entry.recipeId) ?? []));
@@ -184,6 +190,15 @@ export class PlanService {
   // Records how much of an item is already at home, in the item's own (normalised) unit.
   setHave(item: ShoppingItem, quantity: number): void {
     if (!item.ingredientId) return;
+    if (item.pantryItem) {
+      const fraction = item.quantity > 0 ? Math.min(1, Math.max(0, quantity / item.quantity)) : 0;
+      this.patchItem(i => i.ingredientId === item.ingredientId, {
+        have: Math.round(item.quantity * fraction * 1000) / 1000,
+        pantryOverride: true
+      });
+      this.setPantryHave(item.ingredientId, fraction);
+      return;
+    }
     const value = Math.max(0, Math.round(quantity * 1000) / 1000);
     this.plan.update(plan =>
       plan
@@ -203,12 +218,29 @@ export class PlanService {
       .subscribe({ next: () => this.refresh(), error: () => this.refresh() });
   }
 
+  resetPantry(item: ShoppingItem): void {
+    if (item.ingredientId && item.pantryItem) this.setPantryHave(item.ingredientId, null);
+  }
+
+  private setPantryHave(ingredientId: string, fraction: number | null): void {
+    this.pantryError.set(false);
+    this.pantry.setHaveFraction(ingredientId, fraction).subscribe({
+      next: () => this.refresh(),
+      error: () => {
+        this.pantryError.set(true);
+        this.refresh();
+      }
+    });
+  }
+
   uncheckAll(): void {
     this.http.delete(`${apiUrl}meal-plan/checks`).subscribe({ next: () => this.refresh() });
   }
 
   // Requests that arrive while a refresh is running are merged into one follow-up refresh.
   refresh(): void {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) return;
     if (this.refreshing) {
       this.refreshQueued = true;
       return;
@@ -218,12 +250,16 @@ export class PlanService {
     const lang = this.i18n.lang();
     this.http.get<MealPlan>(`${apiUrl}meal-plan`, { params: { lang } }).subscribe({
       next: plan => {
+        if (this.auth.currentUser()?.id !== userId) {
+          this.finishRefresh();
+          return;
+        }
         this.plan.set(plan);
         this.error.set(false);
         this.loadSuggestions(lang);
       },
       error: () => {
-        this.error.set(true);
+        if (this.auth.currentUser()?.id === userId) this.error.set(true);
         this.finishRefresh();
       }
     });
@@ -278,6 +314,7 @@ export class PlanService {
     this.connection = null;
     this.live.set(false);
     this.plan.set(null);
+    this.pantryError.set(false);
     this.suggestions.set([]);
     void connection?.stop();
   }
