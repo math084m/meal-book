@@ -6,6 +6,8 @@ import { CatalogService } from './catalog.service';
 import { I18nService } from './i18n.service';
 import { PantryComponent } from './pantry.component';
 import { PlanService } from './plan.service';
+import { By } from '@angular/platform-browser';
+import { SelectFieldComponent } from './select-field.component';
 
 describe('PantryComponent', () => {
   let fixture: ComponentFixture<PantryComponent>;
@@ -74,6 +76,52 @@ describe('PantryComponent', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it('adds every selected ingredient and reloads only after the batch completes', () => {
+    fixture.componentInstance.data.set({ useForShopping: false, items: [] });
+    fixture.detectChanges();
+    const picker = fixture.debugElement.query(By.directive(SelectFieldComponent)).componentInstance as SelectFieldComponent;
+    picker.pick('salt');
+    picker.pick('oil');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.selected).toEqual(['salt', 'oil']);
+    fixture.componentInstance.add();
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/salt')).flush(null);
+    http.expectNone(req => req.url.endsWith('/api/pantry'));
+    expect(fixture.componentInstance.busy()).toBeTrue();
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/oil')).flush(null);
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false,
+      items: [{ ingredientId: 'salt', haveFraction: null }, { ingredientId: 'oil', haveFraction: null }]
+    });
+    expect(fixture.componentInstance.selected).toEqual([]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps failed batch selections for retry and displays ingredients already saved', () => {
+    fixture.componentInstance.data.set({ useForShopping: false, items: [] });
+    fixture.componentInstance.selected = ['salt', 'oil'];
+    fixture.componentInstance.add();
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/salt')).flush(null);
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/oil'))
+      .flush({}, { status: 500, statusText: 'Server error' });
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false, items: [{ ingredientId: 'salt', haveFraction: null }]
+    });
+    expect(fixture.componentInstance.listed().map(item => item.name)).toEqual(['Salt']);
+    expect(fixture.componentInstance.selected).toEqual(['oil']);
+    expect(fixture.componentInstance.error()).toBeTrue();
+    expect(fixture.componentInstance.busy()).toBeFalse();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    fixture.componentInstance.add();
+    http.expectOne(req => req.url.endsWith('/api/pantry/ingredients/oil')).flush(null);
+    http.expectOne(req => req.url.endsWith('/api/pantry')).flush({
+      useForShopping: false,
+      items: [{ ingredientId: 'salt', haveFraction: null }, { ingredientId: 'oil', haveFraction: null }]
+    });
+    expect(fixture.componentInstance.selected).toEqual([]);
+    expect(fixture.componentInstance.error()).toBeFalse();
+  });
+
   it('keeps the saved toggle and displays an error when saving fails', () => {
     const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
     checkbox.click();
@@ -86,6 +134,6 @@ describe('PantryComponent', () => {
     expect(checkbox.checked).toBeFalse();
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(fixture.componentInstance.busy()).toBeFalse();
-    expect(refresh).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Observable, switchMap } from 'rxjs';
+import { Observable, concatMap, from, switchMap, toArray } from 'rxjs';
 import { CatalogService } from './catalog.service';
 import { I18nService } from './i18n.service';
 import { Pantry, PantryService } from './pantry.service';
@@ -23,7 +23,7 @@ import { SelectFieldComponent } from './select-field.component';
         </label>
         <p class="field-hint">{{ i18n.t('pantry.hint') }}</p>
         <div class="pantry-add">
-          <app-select-field [options]="choices()" [(value)]="selected" [multiple]="false" [searchable]="true"
+          <app-select-field [options]="choices()" [(value)]="selected" [multiple]="true" [searchable]="true"
             [placeholder]="i18n.t('pantry.choose')" [ariaLabel]="i18n.t('pantry.choose')" />
           <button type="button" class="button small" [disabled]="busy() || !selected.length" (click)="add()">{{ i18n.t('pantry.add') }}</button>
         </div>
@@ -106,9 +106,11 @@ export class PantryComponent implements OnInit {
   }
 
   add(): void {
-    const id = this.selected[0];
-    if (!id || this.busy()) return;
-    this.mutate(this.pantry.add(id), () => { this.selected = []; });
+    const ids = [...this.selected];
+    if (!ids.length || this.busy()) return;
+    this.mutate(from(ids).pipe(concatMap(id => this.pantry.add(id)), toArray()), () => {
+      this.selected = this.selected.filter(id => !ids.includes(id));
+    });
   }
 
   remove(id: string): void {
@@ -119,7 +121,7 @@ export class PantryComponent implements OnInit {
     this.mutate(this.pantry.setHaveFraction(id, null));
   }
 
-  private mutate(request: Observable<void>, afterSave?: () => void): void {
+  private mutate(request: Observable<unknown>, afterSave?: () => void): void {
     if (this.busy()) return;
     this.busy.set(true);
     this.error.set(false);
@@ -139,6 +141,14 @@ export class PantryComponent implements OnInit {
   }
 
   private loadAfterFailure(): void {
-    this.pantry.get().subscribe({ next: data => this.data.set(data), error: () => undefined });
+    this.pantry.get().subscribe({
+      next: data => {
+        this.data.set(data);
+        const saved = new Set(data.items.map(item => item.ingredientId));
+        this.selected = this.selected.filter(id => !saved.has(id));
+        this.plan.refresh();
+      },
+      error: () => undefined
+    });
   }
 }
