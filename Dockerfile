@@ -1,7 +1,7 @@
 # Production image: ASP.NET API serving the Angular build from wwwroot.
 # The Angular base href is /meal-book/ because a reverse proxy mounts the app there
 # and strips the prefix before forwarding, so the API itself listens at the root.
-FROM node:24-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /app
 COPY src/frontend/meal-book/package*.json ./
 RUN npm ci
